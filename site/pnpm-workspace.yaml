@@ -1,2 +1,6 @@
+# 单包声明：本目录即包根（兼容 pnpm 8 的 workspace 解析）
+packages:
+  - '.'
+# esbuild postinstall 构建白名单（pnpm 10+ 写法）
 allowBuilds:
   esbuild: true
