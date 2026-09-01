@@ -25,7 +25,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        # 版本来自 site/package.json 的 packageManager 字段（pnpm@11，与 lockfile v9.0 对齐）
+        with:
+          # 必须显式指定：action 只读仓库根 package.json 的 packageManager，
+          # 看不到 site/ 子目录的；版本与 site/pnpm-lock.yaml（v9.0）、Dockerfile 对齐
+          version: 11
 
       - uses: actions/setup-node@v4
         with:
