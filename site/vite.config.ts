@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 export default defineConfig({
+  // 子路径部署时设 SITE_BASE（如 GitHub Pages 的 /owiki/）；默认根路径
+  base: process.env.SITE_BASE ?? '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
