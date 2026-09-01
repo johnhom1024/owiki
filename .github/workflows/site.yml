@@ -25,8 +25,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 8.11.0
+        # 版本来自 site/package.json 的 packageManager 字段（pnpm@11，与 lockfile v9.0 对齐）
 
       - uses: actions/setup-node@v4
         with:
