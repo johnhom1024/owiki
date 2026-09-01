@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="OWiki — 自部署的 Obsidian 笔记同步服务。单二进制 + SQLite，WebSocket 实时同步，多端设备管理，开放 API 供 AI 读写你的笔记库。"
+    />
+    <meta name="theme-color" content="#7c3aed" />
+    <title>OWiki — 自部署 Obsidian 笔记同步</title>
+    <script>
+      // 首屏语言初始化（避免闪烁）：默认中文，?lang=en 切英文
+      (function () {
+        var lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('owiki-site-lang') || 'zh'
+        if (lang !== 'zh' && lang !== 'en') lang = 'zh'
+        localStorage.setItem('owiki-site-lang', lang)
+        document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN'
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

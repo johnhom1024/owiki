@@ -1,0 +1,30 @@
+# OWiki 生产部署编排
+# 镜像：Docker Hub（johnhom1024/owiki）为主；国内网络可换 CNB 制品库加速：
+#   image: docker.cnb.cool/johnhom1024/owiki:latest
+#   （CNB 源拉取前需 docker login docker.cnb.cool）
+#
+# 使用前设置环境变量：
+#   OWIKI_TOKEN=<强随机值> OWIKI_ADMIN_PASSWORD=<强密码> docker compose up -d
+services:
+  owiki:
+    image: johnhom1024/owiki:latest
+    container_name: owiki
+    ports:
+      - '8787:8787'
+    environment:
+      OWIKI_DB: /data/owiki.db
+      OWIKI_ADDR: ':8787'
+      # 生产务必改成强随机值（首次建默认 vault 时用作初始同步令牌）
+      OWIKI_TOKEN: ${OWIKI_TOKEN:?请设置 OWIKI_TOKEN 环境变量}
+      # Web 管理端登录账户：仅首次启动初始化（库里已有管理员则忽略）
+      OWIKI_ADMIN_USER: ${OWIKI_ADMIN_USER:-admin}
+      OWIKI_ADMIN_PASSWORD: ${OWIKI_ADMIN_PASSWORD:?请设置 OWIKI_ADMIN_PASSWORD 环境变量}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8787/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

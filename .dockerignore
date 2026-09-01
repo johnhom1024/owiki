@@ -1,0 +1,24 @@
+.git
+.gitignore
+Makefile
+README.md
+LICENSE
+docs/
+attachments/
+owiki.db
+owiki.db-shm
+owiki.db-wal
+owiki-bin
+owiki-server
+owiki
+
+# 前端构建产物由镜像内的 web-builder 阶段重新生成，不要把本地的塞进去
+web/node_modules
+web/dist
+
+# 本地开发环境
+.env
+*.log
+.DS_Store
+docker-compose.yaml
+.cnb.yml

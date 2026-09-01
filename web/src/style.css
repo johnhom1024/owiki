@@ -1,0 +1,423 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   OWiki · Obsidian 默认主题复刻 Design Tokens
+   色板对齐 Obsidian theme-light / theme-dark：
+   - 主区与侧栏双色分区（background vs sidebar）
+   - 全局唯一强调色：紫罗兰 accent（hsl 254）
+   - 极淡的分隔线、小圆角、扁平内容区
+   ============================================================ */
+
+:root {
+  /* background-primary：内容区纯白 */
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(254 18% 16%);
+
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(254 18% 16%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(254 18% 16%);
+
+  /* interactive-accent：Obsidian 紫 */
+  --primary: hsl(254 80% 68%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  --secondary: hsl(254 20% 95%);
+  --secondary-foreground: hsl(254 18% 16%);
+
+  --muted: hsl(254 20% 95%);
+  --muted-foreground: hsl(254 10% 44%);
+
+  --accent: hsl(254 30% 93%);
+  --accent-foreground: hsl(254 40% 30%);
+
+  --destructive: hsl(355 80% 55%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  /* divider：极淡，Obsidian 式若有若无 */
+  --border: hsl(254 12% 36% / 14%);
+  --input: hsl(254 12% 36% / 18%);
+  --ring: hsl(254 80% 68%);
+
+  /* 圆角收小：Obsidian 不走大圆角卡片风 */
+  --radius: 0.375rem;
+
+  /* background-secondary：侧栏浅紫灰（双色分区的关键） */
+  --sidebar: hsl(240 17% 95%);
+  --sidebar-foreground: hsl(254 18% 16%);
+  --sidebar-primary: hsl(254 80% 68%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(254 24% 90%);
+  --sidebar-accent-foreground: hsl(254 30% 22%);
+  --sidebar-border: hsl(254 12% 36% / 14%);
+  --sidebar-ring: hsl(254 80% 68%);
+}
+
+.dark {
+  /* background-primary：#1e1e1e */
+  --background: hsl(0 0% 12%);
+  --foreground: hsl(228 12% 82%);
+
+  --card: hsl(0 0% 12%);
+  --card-foreground: hsl(228 12% 82%);
+  --popover: hsl(255 10% 15%);
+  --popover-foreground: hsl(228 12% 82%);
+
+  --primary: hsl(254 74% 68%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  --secondary: hsl(252 8% 18%);
+  --secondary-foreground: hsl(228 12% 82%);
+
+  --muted: hsl(252 8% 18%);
+  --muted-foreground: hsl(245 8% 58%);
+
+  --accent: hsl(253 12% 21%);
+  --accent-foreground: hsl(228 12% 88%);
+
+  --destructive: hsl(355 75% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  --border: hsl(0 0% 100% / 12%);
+  --input: hsl(0 0% 100% / 16%);
+  --ring: hsl(254 74% 68%);
+
+  /* background-secondary：#161616，比主区更深一档 */
+  --sidebar: hsl(0 0% 8%);
+  --sidebar-foreground: hsl(228 12% 82%);
+  --sidebar-primary: hsl(254 74% 68%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(253 12% 17%);
+  --sidebar-accent-foreground: hsl(228 12% 88%);
+  --sidebar-border: hsl(0 0% 100% / 12%);
+  --sidebar-ring: hsl(254 74% 68%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Obsidian 默认字体栈 */
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      'Inter',
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      'PingFang SC',
+      'Hiragino Sans GB',
+      'Microsoft YaHei',
+      sans-serif,
+      'Apple Color Emoji',
+      'Segoe UI Emoji';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+}
+
+/* 细滚动条（Obsidian 桌面端质感） */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--muted-foreground) 28%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   布局骨架变量
+   ============================================================ */
+:root {
+  --ribbon-width: 44px;
+  --sidebar-width: 272px;
+  /* Obsidian 可读行宽 */
+  --file-line-width: 42rem;
+}
+
+/* ============================================================
+   Markdown 阅读页（Obsidian 风格）
+   ============================================================ */
+
+.markdown-body {
+  font-size: 1rem;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+/* 标题阶梯：贴近 Obsidian 阅读视图的层级感 */
+.markdown-body h1 { @apply mt-8 mb-4 text-[1.6em] font-bold leading-tight; }
+.markdown-body h2 { @apply mt-8 mb-3 pb-1 text-[1.35em] font-bold leading-tight; }
+.markdown-body h3 { @apply mt-6 mb-2 text-[1.18em] font-bold; }
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 { @apply mt-4 mb-2 text-[1.05em] font-semibold; }
+
+/* 正文与列表 */
+.markdown-body p { @apply my-3; }
+.markdown-body ul { @apply my-3 list-disc pl-6; }
+.markdown-body ol { @apply my-3 list-decimal pl-6; }
+.markdown-body li { @apply my-1; }
+.markdown-body li::marker { @apply text-muted-foreground; }
+.markdown-body li.task-list-item { @apply list-none pl-0; }
+.markdown-body li.task-list-item > input[type='checkbox'] {
+  @apply mr-1.5 size-4 translate-y-0.5;
+  accent-color: var(--primary);
+}
+
+/* 链接：Obsidian 式——accent 着色、默认无下划线、hover 划线 */
+.markdown-body a {
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+.markdown-body a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ==高亮==（Obsidian Highlights 语法） */
+.markdown-body mark {
+  @apply rounded-sm px-0.5;
+  background: hsl(46 95% 62% / 0.42);
+  color: inherit;
+}
+
+/* #标签：紫色药丸 */
+.obsidian-tag {
+  @apply inline-block align-baseline text-[0.85em] leading-relaxed;
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 0.05em 0.6em;
+  white-space: nowrap;
+}
+
+/* 未解析的 [[wikilink]]：灰字虚线下划线（同 Obsidian「未创建链接」） */
+.obsidian-unresolved {
+  color: var(--muted-foreground);
+  border-bottom: 1px dashed color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+  cursor: default;
+}
+
+/* 引用块：Obsidian 式左侧竖线 */
+.markdown-body blockquote {
+  @apply my-4 pl-4 italic;
+  border-left: 3px solid color-mix(in oklab, var(--foreground) 25%, transparent);
+  color: var(--muted-foreground);
+}
+.markdown-body blockquote p { @apply my-1; }
+
+/* 行内代码：浅底圆角 */
+.markdown-body :not(pre) > code {
+  @apply rounded-md px-[0.35em] py-[0.15em] text-[0.875em];
+  background: color-mix(in oklab, var(--muted) 72%, transparent);
+  color: hsl(340 55% 48%);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+.dark .markdown-body :not(pre) > code {
+  color: hsl(340 70% 72%);
+}
+
+/* 代码块：深色底（亮色模式也用深底，像 Obsidian）+ highlight.js 配色 */
+.markdown-body pre {
+  @apply my-4 overflow-x-auto rounded-lg p-4 text-[0.875rem] leading-relaxed;
+  background: #16181d;
+  color: #d4d4d4;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* highlight.js 主题配色（基于 github-dark 微调） */
+.hljs-comment, .hljs-quote { color: #7d8590; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-type { color: #ff7b72; }
+.hljs-string, .hljs-regexp, .hljs-addition { color: #a5d6ff; }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: #79c0ff; }
+.hljs-title, .hljs-section, .hljs-name, .hljs-title.function_ { color: #d2a8ff; }
+.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable { color: #ffa657; }
+.hljs-built_in, .hljs-class .hljs-title { color: #ffa657; }
+.hljs-meta { color: #79c0ff; }
+.hljs-deletion { color: #ffa198; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }
+
+/* 表格 */
+.markdown-body table {
+  @apply my-4 w-full border-collapse text-[0.95em];
+}
+.markdown-body th {
+  @apply border border-border bg-muted/60 px-3 py-1.5 text-left font-semibold;
+}
+.markdown-body td { @apply border border-border px-3 py-1.5 align-top; }
+.markdown-body tr:nth-child(even) td { background: color-mix(in oklab, var(--muted) 35%, transparent); }
+
+/* 分割线 */
+.markdown-body hr { @apply my-8 border-t border-border; }
+
+/* ![[图片]] 真实渲染（附件已同步时） */
+.markdown-body img.obsidian-embed-image {
+  @apply my-4 max-w-full rounded-lg border shadow-sm;
+}
+
+/* 删除线（GFM） */
+.markdown-body del { @apply text-muted-foreground; }
+
+/* ============================================================
+   Callouts（> [!note] 等）：彩色左边线 + 同色系浅底
+   --co 由 data-callout 类型决定，标题继承该色
+   ============================================================ */
+
+.markdown-body blockquote.callout {
+  @apply my-4 rounded-lg py-3 pr-4 pl-4 not-italic;
+  /* 默认蓝（未知类型兜底），具体类型由下方 data-callout 规则覆盖 */
+  --co: hsl(212 82% 55%);
+  border-left: 3px solid var(--co);
+  background: color-mix(in oklab, var(--co) 7%, transparent);
+  color: var(--foreground);
+}
+.markdown-body blockquote.callout > * { margin-top: 0.35em; margin-bottom: 0.35em; }
+.markdown-body blockquote.callout > *:first-child { margin-top: 0; }
+.markdown-body blockquote.callout > *:last-child { margin-bottom: 0; }
+
+/* 预处理注入的标记 span：不显示，仅承载数据 */
+.callout-marker { display: none; }
+
+.callout-title {
+  @apply flex items-center gap-2 text-[0.95em] font-semibold;
+  color: var(--co);
+  margin-bottom: 0.25em;
+}
+
+/* Obsidian 官方 callout 色相（明暗两版通用中亮度） */
+.markdown-body blockquote[data-callout='note']     { --co: hsl(212 82% 55%); }
+.markdown-body blockquote[data-callout='abstract'],
+.markdown-body blockquote[data-callout='summary'],
+.markdown-body blockquote[data-callout='tldr']     { --co: hsl(174 68% 42%); }
+.markdown-body blockquote[data-callout='info']     { --co: hsl(206 78% 52%); }
+.markdown-body blockquote[data-callout='todo']     { --co: hsl(216 76% 54%); }
+.markdown-body blockquote[data-callout='tip'],
+.markdown-body blockquote[data-callout='hint'],
+.markdown-body blockquote[data-callout='important']{ --co: hsl(189 82% 44%); }
+.markdown-body blockquote[data-callout='success'],
+.markdown-body blockquote[data-callout='check'],
+.markdown-body blockquote[data-callout='done']     { --co: hsl(145 65% 42%); }
+.markdown-body blockquote[data-callout='question'],
+.markdown-body blockquote[data-callout='help'],
+.markdown-body blockquote[data-callout='faq']      { --co: hsl(32 92% 50%); }
+.markdown-body blockquote[data-callout='warning'],
+.markdown-body blockquote[data-callout='caution'],
+.markdown-body blockquote[data-callout='attention']{ --co: hsl(38 92% 52%); }
+.markdown-body blockquote[data-callout='failure'],
+.markdown-body blockquote[data-callout='fail'],
+.markdown-body blockquote[data-callout='missing']  { --co: hsl(355 82% 56%); }
+.markdown-body blockquote[data-callout='danger'],
+.markdown-body blockquote[data-callout='error']    { --co: hsl(355 82% 56%); }
+.markdown-body blockquote[data-callout='bug']      { --co: hsl(355 82% 56%); }
+.markdown-body blockquote[data-callout='example']  { --co: hsl(262 78% 62%); }
+.markdown-body blockquote[data-callout='quote'],
+.markdown-body blockquote[data-callout='cite']     { --co: hsl(250 8% 55%); }
+
+/* ---- Obsidian 特有语法 ---- */
+
+/* ![[图片]] 占位框（附件未同步） */
+.obsidian-embed-placeholder {
+  @apply my-4 flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm;
+  color: var(--muted-foreground);
+}
+.obsidian-embed-placeholder span {
+  @apply ml-auto rounded-full bg-muted px-2 py-0.5 text-xs;
+}
+
+/* ![[笔记]] 嵌入引用块 */
+.markdown-body blockquote.obsidian-note-embed {
+  @apply not-italic py-1;
+  border-left: 3px solid color-mix(in oklab, var(--primary) 60%, transparent);
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+  color: var(--foreground);
+}
+
+/* ============================================================
+   内联标题 + 文档属性面板
+   ============================================================ */
+
+/* Obsidian inline title：大字号直接铺在背景上，无边框 */
+.inline-title {
+  @apply mb-1 text-[1.9em] leading-snug font-bold tracking-tight;
+}
+
+/* YAML frontmatter 属性面板：键值对列表 */
+.obsidian-properties {
+  @apply my-5 overflow-hidden rounded-lg border text-sm;
+  background: color-mix(in oklab, var(--muted) 36%, transparent);
+}
+.obsidian-properties .property-row {
+  @apply flex items-baseline gap-3 px-4 py-1.5;
+}
+.obsidian-properties .property-row + .property-row {
+  border-top: 1px solid var(--border);
+}
+.obsidian-properties .property-key {
+  @apply w-36 shrink-0 truncate text-xs font-medium;
+  color: var(--muted-foreground);
+}
+.obsidian-properties .property-value {
+  @apply min-w-0 flex-1 break-words;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
