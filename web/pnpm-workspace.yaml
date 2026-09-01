@@ -1,0 +1,6 @@
+# 单包声明：本目录即包根（兼容 pnpm 8 的 workspace 解析）
+packages:
+  - '.'
+# 依赖覆盖：强制 ansi-regex >= 5.0.1，修复 GHSA-93q8-gq69-wqmw（ReDoS）
+overrides:
+  ansi-regex@<5.0.1: 5.0.1
