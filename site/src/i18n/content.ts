@@ -1,6 +1,9 @@
 export type Lang = 'zh' | 'en'
 
 export const REPO_URL = 'https://github.com/johnhom1024/owiki'
+/** GitHub raw：浏览器按 text/plain 直接展示 skill 原文 */
+export const SKILL_RAW_URL =
+  'https://raw.githubusercontent.com/johnhom1024/owiki/main/docs/openapi-skill.md'
 
 const zh = {
   notice: {
@@ -16,6 +19,7 @@ const zh = {
     openapi: 'AI 接口',
     security: '安全',
     faq: 'FAQ',
+    skill: 'Skill',
     source: '源码',
     langToggle: 'EN',
   },
@@ -240,7 +244,9 @@ mv main.js manifest.json styles.css \\
     subtitle: '/openapi/* REST 接口 · X-API-Key 认证 · 写入实时广播进 Obsidian',
     desc: '在网页上生成一个 API 密钥，AI 助手就能读你的笔记库、帮你写笔记——它写下的内容秒级出现在 Obsidian 里，每条写入都有同步日志可查。',
     codeTitle: '让 AI 写一篇笔记',
-    skillBadge: '官方 Agent Skill：让 AI 助手直接学会用这套接口',
+    skillBadge: '官方 Agent Skill',
+    skillCta: '查看 Skill 原文',
+    skillHint: '纯文本，可直接拷进 AI 助手的技能目录',
     code: `KEY=owk_xxx   # Web 管理端「API 密钥」页生成
 
 # 列出 vault
@@ -336,6 +342,7 @@ const en: Content = {
     openapi: 'AI API',
     security: 'Security',
     faq: 'FAQ',
+    skill: 'Skill',
     source: 'Source',
     langToggle: '中文',
   },
@@ -560,7 +567,9 @@ mv main.js manifest.json styles.css \\
     subtitle: '/openapi/* REST · X-API-Key auth · writes broadcast live into Obsidian',
     desc: 'Generate an API key on the web console and your AI assistant can read your vault and write notes for you — what it writes lands in Obsidian seconds later, with every write visible in the sync log.',
     codeTitle: 'Let an AI write a note',
-    skillBadge: 'Official Agent Skill: get your AI assistant fluent with the API in one drop',
+    skillBadge: 'Official Agent Skill',
+    skillCta: 'View skill (plain text)',
+    skillHint: 'Raw markdown — drop it into your assistant’s skills folder',
     code: `KEY=owk_xxx   # generated in the web console "API keys" page
 
 # List vaults

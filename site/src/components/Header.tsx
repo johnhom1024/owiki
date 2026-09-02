@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Github, Menu, X } from 'lucide-react'
+import { Github, Menu, Sparkles, X } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
-import { REPO_URL } from '../i18n/content'
+import { REPO_URL, SKILL_RAW_URL } from '../i18n/content'
 import { Logo } from './Logo'
 import { cn } from '../lib/utils'
 
@@ -54,6 +54,15 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <a
+            href={SKILL_RAW_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand/15 px-3.5 py-1.5 text-xs font-medium text-brand-soft transition-colors hover:border-brand/70 hover:bg-brand/25 hover:text-ink"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {t.nav.skill}
+          </a>
           <button
             onClick={toggle}
             className="rounded-full border border-line bg-surface-2/60 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-brand/50 hover:text-ink"
@@ -92,6 +101,15 @@ export function Header() {
                 {l.label}
               </a>
             ))}
+            <a
+              href={SKILL_RAW_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setOpen(false)}
+              className="mt-1 rounded-lg px-3 py-2.5 text-sm text-brand-soft transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              {t.nav.skill}
+            </a>
           </div>
         </nav>
       )}

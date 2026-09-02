@@ -1,5 +1,6 @@
-import { Bot, CheckCircle2, Sparkles } from 'lucide-react'
+import { Bot, CheckCircle2, ExternalLink, Sparkles } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
+import { SKILL_RAW_URL } from '../i18n/content'
 import { SectionHeading } from './Features'
 import { CodeBlock, CopyButton } from './QuickStart'
 
@@ -17,10 +18,24 @@ export function OpenApi() {
               <Bot className="h-6 w-6 text-brand-soft" />
             </div>
             <p className="text-sm leading-relaxed text-muted md:text-base">{t.openapi.desc}</p>
-            <div className="mt-5 inline-flex items-center gap-2.5 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-xs text-brand-soft">
-              <Sparkles className="h-3.5 w-3.5" />
-              {t.openapi.skillBadge}
-            </div>
+            <a
+              href={SKILL_RAW_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3 transition-colors hover:border-brand/60 hover:bg-brand/15"
+            >
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-medium text-brand-soft">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                  {t.openapi.skillBadge}
+                </span>
+                <span className="mt-1 block text-xs text-muted">{t.openapi.skillHint}</span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand/40 bg-brand/20 px-3 py-1.5 text-xs font-medium text-ink">
+                {t.openapi.skillCta}
+                <ExternalLink className="h-3 w-3" />
+              </span>
+            </a>
             <ul className="mt-6 space-y-3">
               {t.openapi.points.map((p) => (
                 <li key={p} className="flex items-start gap-2.5 text-sm text-muted">
