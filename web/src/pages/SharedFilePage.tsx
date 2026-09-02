@@ -7,6 +7,7 @@ import { api, type SharedFileDetail } from '@/lib/api.ts'
 import { preprocessObsidian } from '@/lib/obsidianMarkdown.ts'
 import { markdownComponents } from '@/components/ObsidianRender.tsx'
 import { Logo } from '@/components/Logo.tsx'
+import { useLang } from '@/i18n/LangProvider.tsx'
 
 /**
  * 公开分享页：/share/:token（免登录）。
@@ -44,13 +45,14 @@ function preprocessShared(source: string, token: string) {
 }
 
 export function SharedFilePage() {
+  const { t } = useLang()
   const [token] = useState(readTokenFromLocation)
   const [file, setFile] = useState<SharedFileDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) {
-      setError('分享不存在或已关闭')
+      setError(t.sharedPage.notFound)
       return
     }
     let cancelled = false
@@ -60,7 +62,7 @@ export function SharedFilePage() {
         if (!cancelled) setFile(f)
       })
       .catch(() => {
-        if (!cancelled) setError('分享不存在或已关闭')
+        if (!cancelled) setError(t.sharedPage.notFound)
       })
     return () => {
       cancelled = true
@@ -71,7 +73,7 @@ export function SharedFilePage() {
 
   // 浏览器标题
   useEffect(() => {
-    if (fileTitle) document.title = `OWiki · 分享 · ${fileTitle}`
+    if (fileTitle) document.title = `OWiki · ${t.sharedPage.titlePrefix} · ${fileTitle}`
     return () => {
       document.title = 'OWiki'
     }
@@ -89,18 +91,18 @@ export function SharedFilePage() {
         <div className="mx-auto flex h-12 max-w-[52rem] items-center gap-2 px-6">
           <Logo className="size-5" />
           <span className="text-sm font-semibold">OWiki</span>
-          <span className="text-muted-foreground ml-1 text-xs">· 分享的文章</span>
+          <span className="text-muted-foreground ml-1 text-xs">{t.sharedPage.tag}</span>
         </div>
       </header>
 
       <section className="mx-auto w-full max-w-[42rem] px-6 pt-8 pb-24">
-        {!file && !error && <p className="text-muted-foreground py-20 text-center">加载中...</p>}
+        {!file && !error && <p className="text-muted-foreground py-20 text-center">{t.common.loading}</p>}
 
         {error && (
           <div className="py-20 text-center">
             <p className="text-lg font-medium">{error}</p>
             <p className="text-muted-foreground mt-2 text-sm">
-              链接可能已失效，请联系分享者重新开启
+              {t.sharedPage.expiredHint}
             </p>
           </div>
         )}

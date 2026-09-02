@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { api } from '@/lib/api.ts'
+import { useLang } from '@/i18n/LangProvider.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Input } from '@/components/ui/input.tsx'
 import { Label } from '@/components/ui/label.tsx'
@@ -21,6 +22,7 @@ type Step = 'idle' | 'scan' | 'enabled'
  * 关闭需要密码复核。
  */
 export function SecurityPage() {
+  const { t } = useLang()
   const [step, setStep] = useState<Step>('idle')
   const [loading, setLoading] = useState(true)
   const [secret, setSecret] = useState('')
@@ -37,7 +39,7 @@ export function SecurityPage() {
       const s = await api.totpStatus()
       setStep(s.enabled ? 'enabled' : 'idle')
     } catch {
-      setError('无法获取二次认证状态')
+      setError(t.security.statusFailed)
     } finally {
       setLoading(false)
     }
@@ -45,6 +47,7 @@ export function SecurityPage() {
 
   useEffect(() => {
     void refreshStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 生成二维码
@@ -66,7 +69,7 @@ export function SecurityPage() {
       setCode('')
       setStep('scan')
     } catch (e) {
-      setError(e instanceof Error ? e.message : '生成失败')
+      setError(e instanceof Error ? e.message : t.security.generateFailed)
     } finally {
       setBusy(false)
     }
@@ -79,12 +82,14 @@ export function SecurityPage() {
     try {
       await api.totpConfirm({ code })
       setStep('enabled')
-      setNotice('二次认证已开启 ✅ 之后登录需要密码 + 动态验证码')
+      setNotice(t.security.enabledNotice)
       setSecret('')
       setOtpauthUrl('')
     } catch (e) {
       setCode('')
-      setError(e instanceof Error && e.message !== 'unauthorized' ? e.message : '验证码错误，请重试')
+      setError(
+        e instanceof Error && e.message !== 'unauthorized' ? e.message : t.security.wrongCode,
+      )
     } finally {
       setBusy(false)
     }
@@ -98,21 +103,23 @@ export function SecurityPage() {
     try {
       await api.totpDisable({ password })
       setStep('idle')
-      setNotice('二次认证已关闭')
+      setNotice(t.security.disabledNotice)
       setPassword('')
     } catch (e) {
       setPassword('')
-      setError(e instanceof Error && e.message !== 'unauthorized' ? e.message : '密码错误')
+      setError(
+        e instanceof Error && e.message !== 'unauthorized' ? e.message : t.security.wrongPassword,
+      )
     } finally {
       setBusy(false)
     }
   }
 
-  if (loading) return <div className="p-8 text-sm text-muted-foreground">加载中…</div>
+  if (loading) return <div className="text-muted-foreground p-8 text-sm">{t.common.loading}</div>
 
   return (
     <div className="mx-auto max-w-xl space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">安全设置</h1>
+      <h1 className="text-2xl font-semibold">{t.security.title}</h1>
 
       {notice && (
         <div className="rounded-md border border-primary/25 bg-primary/10 p-3 text-sm dark:bg-primary/15">
@@ -124,26 +131,21 @@ export function SecurityPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            二次认证（TOTP）
+            {t.security.totp}
             {step === 'enabled' ? (
-              <Badge className="bg-primary">已开启</Badge>
+              <Badge className="bg-primary">{t.security.enabled}</Badge>
             ) : (
-              <Badge variant="secondary">未开启</Badge>
+              <Badge variant="secondary">{t.security.disabled}</Badge>
             )}
           </CardTitle>
-          <CardDescription>
-            开启后登录需要「密码 + 动态验证码」两步，验证码由 Google Authenticator、
-            1Password 等验证器 App 生成，每 30 秒更换。
-          </CardDescription>
+          <CardDescription>{t.security.desc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 'idle' && (
             <>
-              <p className="text-muted-foreground text-sm">
-                建议开启：即使密码泄露，攻击者没有你的手机也无法登录。
-              </p>
+              <p className="text-muted-foreground text-sm">{t.security.suggest}</p>
               <Button onClick={() => void beginSetup()} disabled={busy}>
-                {busy ? '生成中…' : '开启二次认证'}
+                {busy ? t.security.generating : t.security.enable}
               </Button>
             </>
           )}
@@ -152,38 +154,38 @@ export function SecurityPage() {
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-3">
                 {qrDataUrl ? (
-                  <img src={qrDataUrl} alt="TOTP 二维码" className="rounded-md border" width={192} height={192} />
+                  <img src={qrDataUrl} alt={t.security.qrAlt} className="rounded-md border" width={192} height={192} />
                 ) : (
-                  <div className="flex h-48 w-48 items-center justify-center rounded-md border text-xs text-muted-foreground">
-                    二维码生成中…
+                  <div className="text-muted-foreground flex h-48 w-48 items-center justify-center rounded-md border text-xs">
+                    {t.security.qrLoading}
                   </div>
                 )}
                 <p className="text-muted-foreground text-center text-xs">
-                  用验证器 App 扫码添加。无法扫码时手动输入密钥：
+                  {t.security.scanHint}
                   <code className="mt-1 block max-w-full break-all rounded bg-muted px-2 py-1 font-mono">
                     {secret}
                   </code>
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-code">输入 App 上的 6 位验证码确认</Label>
+                <Label htmlFor="confirm-code">{t.security.codeLabel}</Label>
                 <Input
                   id="confirm-code"
                   inputMode="numeric"
                   maxLength={6}
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="6 位数字"
+                  placeholder={t.security.codePlaceholder}
                   className="text-center font-mono text-lg tracking-[0.5em]"
                   onKeyDown={(e) => e.key === 'Enter' && void confirm()}
                 />
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => void confirm()} disabled={busy || code.length !== 6}>
-                  {busy ? '确认中…' : '确认开启'}
+                  {busy ? t.security.confirming : t.security.confirmEnable}
                 </Button>
                 <Button variant="outline" onClick={() => void refreshStatus()} disabled={busy}>
-                  取消
+                  {t.common.cancel}
                 </Button>
               </div>
             </div>
@@ -191,11 +193,9 @@ export function SecurityPage() {
 
           {step === 'enabled' && (
             <div className="space-y-4">
-              <p className="text-muted-foreground text-sm">
-                关闭后登录只需密码。此操作敏感，需输入登录密码确认。
-              </p>
+              <p className="text-muted-foreground text-sm">{t.security.disableHint}</p>
               <div className="space-y-2">
-                <Label htmlFor="disable-password">登录密码</Label>
+                <Label htmlFor="disable-password">{t.security.passwordLabel}</Label>
                 <Input
                   id="disable-password"
                   type="password"
@@ -206,7 +206,7 @@ export function SecurityPage() {
                 />
               </div>
               <Button variant="destructive" onClick={() => void disable()} disabled={busy || !password}>
-                {busy ? '关闭中…' : '关闭二次认证'}
+                {busy ? t.security.disabling : t.security.disable}
               </Button>
             </div>
           )}

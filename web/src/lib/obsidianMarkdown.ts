@@ -70,7 +70,9 @@ export function preprocessObsidian(
   source: string,
   vaultId: number,
   files: { id: number; path: string }[],
+  labels?: { attachNotSynced: string; embedNote: string; notFound: string },
 ): ObsidianPreprocessResult {
+  const L = labels ?? { attachNotSynced: '附件未同步', embedNote: '嵌入笔记：', notFound: '未找到该笔记' }
   const index = buildNameIndex(files)
   const unresolved: string[] = []
 
@@ -94,13 +96,13 @@ export function preprocessObsidian(
       }
       unresolved.push(target)
       const alt = (alias && !/^\d+$/.test(alias.trim()) ? alias.trim() : target).replace(/"/g, '&quot;')
-      return `<p class="obsidian-embed-placeholder" data-embed-type="image">🖼️ ${escapeHtml(alt)}<span>附件未同步</span></p>`
+      return `<p class="obsidian-embed-placeholder" data-embed-type="image">🖼️ ${escapeHtml(alt)}<span>${L.attachNotSynced}</span></p>`
     }
 
     // 文本嵌入：指向 vault 里的笔记 → 引用块；找不到 → 占位
     const fileId = resolveTarget(target, index)
     if (fileId !== undefined) {
-      return `<blockquote class="obsidian-note-embed">📎 嵌入笔记：<a href="/vaults/${vaultId}/files/${fileId}">${escapeHtml(
+      return `<blockquote class="obsidian-note-embed">📎 ${L.embedNote}<a href="/vaults/${vaultId}/files/${fileId}">${escapeHtml(
         alias?.trim() || target,
       )}</a></blockquote>`
     }

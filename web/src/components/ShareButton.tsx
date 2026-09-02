@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import QRCode from 'qrcode'
 import { Check, Copy, Link2, QrCode, Share2 } from 'lucide-react'
 import { api } from '@/lib/api.ts'
+import { useLang } from '@/i18n/LangProvider.tsx'
 import { cn } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
@@ -32,6 +33,7 @@ function useIsMobile(): boolean {
  * fixed 子元素会被困在 header 内无法相对视口定位。
  */
 export function ShareButton({ fileId }: { fileId: number }) {
+  const { t } = useLang()
   const [open, setOpen] = useState(false)
   const [enabled, setEnabled] = useState(false)
   const [token, setToken] = useState('')
@@ -55,8 +57,19 @@ export function ShareButton({ fileId }: { fileId: number }) {
         setToken(s.token)
         setLoaded(true)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : '获取分享状态失败'))
+      .catch((e) => setError(e instanceof Error ? e.message : t.share.loadFailed))
   }, [open, loaded, fileId])
+
+  // fileId 变化（路由切换文章，组件被复用不重建）：重置全部状态，
+  // 否则浮窗里显示的还是上一篇的分享链接（loaded=true 导致不重新拉取）
+  useEffect(() => {
+    setEnabled(false)
+    setToken('')
+    setLoaded(false)
+    setShowQr(false)
+    setQrDataUrl('')
+    setError(null)
+  }, [fileId])
 
   // 桌面端：点外部关闭（移动端走遮罩按钮）
   useEffect(() => {
@@ -96,7 +109,7 @@ export function ShareButton({ fileId }: { fileId: number }) {
       setEnabled(s.enabled)
       setToken(s.token)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '操作失败')
+      setError(e instanceof Error ? e.message : t.share.operationFailed)
     } finally {
       setBusy(false)
     }
@@ -109,7 +122,7 @@ export function ShareButton({ fileId }: { fileId: number }) {
       setTimeout(() => setCopied(false), 1500)
     } catch {
       // 剪贴板不可用（如非安全上下文）：退回选中提示
-      setError('复制失败，请手动选中复制')
+      setError(t.share.copyFailed)
     }
   }
 
@@ -118,9 +131,9 @@ export function ShareButton({ fileId }: { fileId: number }) {
       {/* 开关行 */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium">对外分享</p>
+          <p className="text-sm font-medium">{t.share.title}</p>
           <p className="text-muted-foreground text-xs">
-            {enabled ? '任何拿到链接的人都能查看这篇文章' : '开启后生成公开链接，无需登录即可查看'}
+            {enabled ? t.share.enabledHint : t.share.disabledHint}
           </p>
         </div>
         <Switch checked={enabled} disabled={busy} onChange={(e) => void toggle(e.target.checked)} />
@@ -133,19 +146,19 @@ export function ShareButton({ fileId }: { fileId: number }) {
             <code className="bg-muted min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-xs">
               {shareUrl}
             </code>
-            <Button variant="outline" size="icon" className="size-8 shrink-0" title="复制链接" onClick={() => void copy()}>
+            <Button variant="outline" size="icon" className="size-8 shrink-0" title={t.share.copyLink} onClick={() => void copy()}>
               {copied ? <Check className="size-3.5 text-green-600" /> : <Copy className="size-3.5" />}
             </Button>
             <Button
               variant="outline"
               size="icon"
               className="size-8 shrink-0"
-              title={showQr ? '收起二维码' : '显示二维码'}
+              title={showQr ? t.share.hideQr : t.share.showQr}
               onClick={() => setShowQr((v) => !v)}
             >
               <QrCode className="size-3.5" />
             </Button>
-            <Button variant="outline" size="icon" className="size-8 shrink-0" title="在新标签页打开" asChild>
+            <Button variant="outline" size="icon" className="size-8 shrink-0" title={t.share.openNewTab} asChild>
               <a href={`/share/${token}`} target="_blank" rel="noreferrer noopener">
                 <Link2 className="size-3.5" />
               </a>
@@ -154,9 +167,9 @@ export function ShareButton({ fileId }: { fileId: number }) {
           {showQr && (
             <div className="mt-3 flex justify-center rounded-md border p-3">
               {qrDataUrl ? (
-                <img src={qrDataUrl} alt="分享二维码" className="size-40 md:size-44" />
+                <img src={qrDataUrl} alt={t.share.qrAlt} className="size-40 md:size-44" />
               ) : (
-                <span className="text-muted-foreground py-10 text-xs">生成中...</span>
+                <span className="text-muted-foreground py-10 text-xs">{t.share.generating}</span>
               )}
             </div>
           )}
@@ -173,11 +186,11 @@ export function ShareButton({ fileId }: { fileId: number }) {
         variant="ghost"
         size="sm"
         className={cn('text-muted-foreground', enabled && 'text-primary')}
-        title={enabled ? '分享已开启' : '分享'}
+        title={enabled ? t.share.enabledTitle : t.share.label}
         onClick={() => setOpen((o) => !o)}
       >
         <Share2 />
-        分享
+        {t.share.label}
       </Button>
 
       {panel &&
@@ -185,7 +198,7 @@ export function ShareButton({ fileId }: { fileId: number }) {
           // 移动端：遮罩 + 底部浮层，portal 到 body（绕开 header 的 containing block）
           createPortal(
             <>
-              <button aria-label="关闭分享面板" className="fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)} />
+              <button aria-label={t.share.closePanel} className="fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)} />
               <div
                 ref={sheetRef}
                 className="bg-popover text-popover-foreground fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border p-4 shadow-2xl"

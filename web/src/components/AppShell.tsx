@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen,
-  ChevronDown,
   FileText,
   FolderPlus,
   Home,
@@ -17,19 +16,10 @@ import {
 } from 'lucide-react'
 import { api, type FileMeta, type VaultMeta } from '@/lib/api.ts'
 import { cn } from '@/lib/utils.ts'
+import { useLang, fill } from '@/i18n/LangProvider.tsx'
+import { CreateVaultDialog } from '@/components/CreateVaultDialog.tsx'
 import { FileTree } from '@/components/FileTree.tsx'
 import { Logo } from '@/components/Logo.tsx'
-import { Button } from '@/components/ui/button.tsx'
-import { Input } from '@/components/ui/input.tsx'
-import { Label } from '@/components/ui/label.tsx'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog.tsx'
 
 /* ============================================================
    暗色主题：跟随系统，可手动切换并持久化
@@ -65,10 +55,11 @@ function useTheme() {
 }
 
 function ThemeButton({ theme, toggle }: { theme: Theme; toggle: () => void }) {
+  const { t } = useLang()
   return (
     <button
       onClick={toggle}
-      title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+      title={theme === 'dark' ? t.nav.themeToLight : t.nav.themeToDark}
       className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md"
     >
       {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -76,175 +67,26 @@ function ThemeButton({ theme, toggle }: { theme: Theme; toggle: () => void }) {
   )
 }
 
-/* ============================================================
-   Vault 切换器：侧栏顶部的下拉面板（含新建 vault）
-   ============================================================ */
-
-function VaultSwitcher({
-  vaults,
-  currentId,
-  onNavigate,
-  onRefresh,
-}: {
-  vaults: VaultMeta[]
-  currentId?: number
-  onNavigate: (to: string) => void
-  onRefresh: () => Promise<void>
-}) {
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const [note, setNote] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const current = vaults.find((v) => v.id === currentId)
-
-  const create = async () => {
-    if (!name.trim()) {
-      setError('名称不能为空')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      const res = await api.createVault({ name: name.trim(), note: note.trim() })
-      setCreating(false)
-      setName('')
-      setNote('')
-      setOpen(false)
-      await onRefresh()
-      onNavigate(`/vaults/${res.data.id}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '创建失败')
-    } finally {
-      setBusy(false)
-    }
-  }
-
+/** 语言切换按钮：中/EN 互切 */
+function LangButton() {
+  const { t, toggle } = useLang()
   return (
-    <div className="relative px-2 pt-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          'hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-          open && 'bg-sidebar-accent',
-        )}
-      >
-        <BookOpen className="text-primary size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={current?.name}>
-          {current?.name ?? '选择 vault'}
-        </span>
-        {current && (
-          <span
-            onClick={(e) => {
-              e.stopPropagation()
-              onNavigate(`/vaults/${current.id}/settings`)
-            }}
-            className="text-muted-foreground hover:text-foreground shrink-0 rounded p-1"
-            title="vault 设置"
-          >
-            <Settings2 className="size-3.5" />
-          </span>
-        )}
-        <ChevronDown className={cn('text-muted-foreground size-3.5 shrink-0 transition-transform', open && 'rotate-180')} />
-      </button>
-
-      {/* 下拉面板 */}
-      {open && (
-        <>
-          <button className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} />
-          <div className="bg-popover absolute inset-x-2 top-full z-40 mt-1 overflow-hidden rounded-lg border shadow-lg">
-            <div className="max-h-64 overflow-y-auto p-1">
-              {vaults.map((v) => (
-                <button
-                  key={v.id}
-                  title={v.note || v.name}
-                  onClick={() => {
-                    setOpen(false)
-                    onNavigate(`/vaults/${v.id}`)
-                  }}
-                  className={cn(
-                    'hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
-                    v.id === currentId && 'bg-sidebar-accent font-medium',
-                  )}
-                >
-                  <BookOpen className="size-4 shrink-0 opacity-70" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{v.name}</span>
-                    {v.note && (
-                      <span className="text-muted-foreground block truncate text-xs font-normal">
-                        {v.note}
-                      </span>
-                    )}
-                  </span>
-                  {v.clients > 0 && (
-                    <span className="size-2 shrink-0 rounded-full bg-primary" title={`${v.clients} 个连接在线`} />
-                  )}
-                </button>
-              ))}
-              {vaults.length === 0 && (
-                <p className="text-muted-foreground px-2 py-3 text-center text-xs">还没有 vault</p>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                setOpen(false)
-                setCreating(true)
-              }}
-              className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent flex w-full items-center gap-2 border-t px-3 py-2 text-left text-sm"
-            >
-              <FolderPlus className="size-4" />
-              新建 vault
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* 创建对话框 */}
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>创建 Vault</DialogTitle>
-            <DialogDescription>每个 vault 是一个独立的同步库，拥有自己的同步令牌。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="vault-name">名称</Label>
-              <Input
-                id="vault-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="如：个人笔记、工作库"
-                onKeyDown={(e) => e.key === 'Enter' && void create()}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="vault-note">备注（可选）</Label>
-              <Input
-                id="vault-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="简单描述一下这个库"
-              />
-            </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreating(false)}>
-              取消
-            </Button>
-            <Button disabled={busy} onClick={() => void create()}>
-              {busy ? '创建中...' : '创建'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    <button
+      onClick={toggle}
+      title={t.nav.langToggle === 'EN' ? 'Switch to English' : '切换到中文'}
+      className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md text-xs font-semibold"
+    >
+      {t.nav.langToggle}
+    </button>
   )
 }
 
+/** 侧栏导航行的基础样式 */
+const navRow =
+  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]'
+
 /* ============================================================
-   侧栏主体：切换器 + 文件树（vault 内）/ 提示 + 底部导航
+   侧栏主体：品牌区 + 总览 + vault 列表（vault 内含文件树）+ 底部导航
    ============================================================ */
 
 function SidebarBody({
@@ -254,6 +96,8 @@ function SidebarBody({
   syncProgress,
   onLogout,
   onNavigated,
+  theme,
+  toggleTheme,
   showClose,
   onClose,
 }: {
@@ -265,11 +109,16 @@ function SidebarBody({
   syncProgress?: Record<number, { total: number; done: number }>
   onLogout?: () => void
   onNavigated?: () => void
+  theme: Theme
+  toggleTheme: () => void
   showClose?: boolean
   onClose?: () => void
 }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { t } = useLang()
+
+  const [creating, setCreating] = useState(false)
 
   const vaultId = useMemo(() => {
     const m = location.pathname.match(/^\/vaults\/(\d+)/)
@@ -322,44 +171,95 @@ function SidebarBody({
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶部：移动端关闭按钮 + vault 切换器 */}
-      <div className="flex items-start gap-1 pr-2">
-        <div className="min-w-0 flex-1">
-          <VaultSwitcher vaults={vaults} currentId={vaultId} onNavigate={go} onRefresh={onRefresh} />
-        </div>
+      {/* 品牌区：Logo + 主题切换（移动端再带收起按钮） */}
+      <div className="flex h-11 shrink-0 items-center gap-1 px-2.5">
+        <button
+          onClick={() => go('/')}
+          className="hover:bg-sidebar-accent flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1"
+          title={t.nav.overview}
+        >
+          <Logo className="size-6 shrink-0" />
+          <span className="truncate text-sm font-semibold tracking-tight">{t.nav.appName}</span>
+        </button>
         {showClose && (
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:bg-sidebar-accent mt-2 rounded-md p-1.5"
-            title="收起"
+            className="text-muted-foreground hover:bg-sidebar-accent rounded-md p-1.5"
+            title={t.common.back}
           >
             <X className="size-4" />
           </button>
         )}
       </div>
 
-      {/* 中部：文件树 / 空状态提示 */}
-      <nav className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
-        {inVault ? (
-          <>
-            <div className="text-muted-foreground flex items-center gap-1.5 px-2.5 pb-1 text-[11px] font-semibold tracking-wider uppercase">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        {/* 总览 */}
+        <button
+          onClick={() => go('/')}
+          className={cn(navRow, location.pathname === '/' && 'bg-sidebar-accent text-sidebar-accent-foreground font-medium')}
+        >
+          <Home className="size-4 shrink-0 opacity-70" />
+          <span>{t.nav.overview}</span>
+        </button>
+
+        {/* Vault 列表 */}
+        <div className="mt-4 mb-1 flex items-center justify-between px-2">
+          <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+            {t.nav.vaults}
+          </span>
+          <button
+            onClick={() => setCreating(true)}
+            title={t.nav.newVault}
+            className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded p-1"
+          >
+            <FolderPlus className="size-3.5" />
+          </button>
+        </div>
+        <div className="space-y-0.5">
+          {vaults.map((v) => (
+            <div key={v.id} className="group relative">
+              <button
+                onClick={() => go(`/vaults/${v.id}`)}
+                title={v.note || v.name}
+                className={cn(
+                  navRow,
+                  v.id === vaultId && 'bg-sidebar-accent text-sidebar-accent-foreground font-medium',
+                )}
+              >
+                <BookOpen className="size-4 shrink-0 opacity-70" />
+                <span className="min-w-0 flex-1 truncate">{v.name}</span>
+                {v.clients > 0 && (
+                  <span className="bg-primary size-2 shrink-0 rounded-full" title={fill(t.nav.clientsOnline, { n: v.clients })} />
+                )}
+              </button>
+              {/* 悬停浮现的设置入口 */}
+              <button
+                onClick={() => go(`/vaults/${v.id}/settings`)}
+                title={t.nav.vaultSettings}
+                className="text-muted-foreground hover:text-foreground bg-sidebar-accent absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded p-1 group-hover:block"
+              >
+                <Settings2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+          {vaults.length === 0 && (
+            <p className="text-muted-foreground px-2 py-2 text-xs">{t.nav.noVaultsYet}</p>
+          )}
+        </div>
+
+        {/* 当前 vault 的文件树 */}
+        {inVault && (
+          <div className="mt-4">
+            <div className="text-muted-foreground mb-1 flex items-center gap-1.5 px-2 text-[11px] font-semibold tracking-wider uppercase">
               <FileText className="size-3" />
-              文件
+              {t.nav.files}
             </div>
             {files.length > 0 ? (
               <FileTree files={files} currentPath={currentPath} onOpenFile={(f) => go(`/vaults/${vaultId}/files/${f.id}`)} />
             ) : (
-              <p className="text-muted-foreground px-2.5 py-3 text-xs">还没有文件——去设置页连接 Obsidian 同步</p>
+              <p className="text-muted-foreground px-2 py-2 text-xs">{t.nav.noFilesYet}</p>
             )}
-          </>
-        ) : (
-          <button
-            onClick={() => go('/')}
-            className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]"
-          >
-            <Home className="size-4 shrink-0 opacity-70" />
-            <span>全部 vault</span>
-          </button>
+          </div>
         )}
       </nav>
 
@@ -367,14 +267,16 @@ function SidebarBody({
       {syncingVault && (
         <button
           onClick={() => go(`/vaults/${syncingVault.id}`)}
-          className="hover:bg-sidebar-accent mx-2 mb-2 rounded-md border px-2.5 py-2 text-left"
-          title={`正在同步 ${syncingVault.name}`}
+          className="hover:bg-sidebar-accent mx-2 mb-2 shrink-0 rounded-md border px-2.5 py-2 text-left"
+          title={fill(t.nav.syncingVault, { name: syncingVault.name })}
         >
           <div className="text-muted-foreground mb-1.5 flex items-center justify-between text-[11px]">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="bg-primary inline-block size-1.5 shrink-0 animate-pulse rounded-full" />
               <span className="truncate">
-                同步中{vaults.length > 1 ? ` · ${syncingVault.name}` : ''}
+                {vaults.length > 1
+                  ? fill(t.nav.syncingVault, { name: syncingVault.name })
+                  : t.nav.syncing}
               </span>
             </span>
             <span className="shrink-0 tabular-nums">
@@ -393,33 +295,36 @@ function SidebarBody({
       )}
 
       {/* 底部导航 */}
-      <div className="border-t px-2 py-2">
+      <div className="shrink-0 border-t px-2 py-2">
         {[
-          { to: '/apikeys', icon: KeyRound, label: 'API 密钥', active: location.pathname === '/apikeys' },
-          { to: '/security', icon: ShieldCheck, label: '安全设置', active: location.pathname === '/security' },
+          { to: '/apikeys', icon: KeyRound, label: t.nav.apiKeys, active: location.pathname === '/apikeys' },
+          { to: '/security', icon: ShieldCheck, label: t.nav.security, active: location.pathname === '/security' },
         ].map(({ to, icon: Icon, label, active }) => (
           <button
             key={to}
             onClick={() => go(to)}
-            className={cn(
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px]',
-              active && 'bg-sidebar-accent text-sidebar-accent-foreground font-medium',
-            )}
+            className={cn(navRow, active && 'bg-sidebar-accent text-sidebar-accent-foreground font-medium')}
           >
             <Icon className="size-4 shrink-0 opacity-70" />
             <span>{label}</span>
           </button>
         ))}
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[13px]"
-          >
-            <LogOut className="size-4 shrink-0" />
-            <span>登出</span>
-          </button>
-        )}
+        <div className="mt-1 flex items-center justify-between">
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]"
+            >
+              <LogOut className="size-4 shrink-0" />
+              <span>{t.nav.logout}</span>
+            </button>
+          )}
+          <ThemeButton theme={theme} toggle={toggleTheme} />
+          <LangButton />
+        </div>
       </div>
+
+      <CreateVaultDialog open={creating} onOpenChange={setCreating} onCreated={onRefresh} />
     </div>
   )
 }
@@ -435,6 +340,7 @@ function StatusBar({
   vaults: VaultMeta[]
   syncProgress?: Record<number, { total: number; done: number }>
 }) {
+  const { t } = useLang()
   const syncing = Object.entries(syncProgress ?? {}).find(([vid, p]) => {
     void vid
     return p.total > 0 && p.done < p.total
@@ -446,17 +352,17 @@ function StatusBar({
       {syncing && (
         <span className="flex items-center gap-1.5">
           <span className="bg-primary inline-block size-1.5 animate-pulse rounded-full" />
-          同步中 {syncing[1].done}/{syncing[1].total}
+          {t.nav.syncing} {syncing[1].done}/{syncing[1].total}
         </span>
       )}
-      <span>{onlineClients > 0 ? `${onlineClients} 个设备在线` : '未连接'}</span>
-      <span>{vaults.length} 个 vault</span>
+      <span>{onlineClients > 0 ? fill(t.nav.onlineDevices, { n: onlineClients }) : t.nav.notConnected}</span>
+      <span>{fill(t.nav.vaultCount, { n: vaults.length })}</span>
     </div>
   )
 }
 
 /* ============================================================
-   AppShell：Ribbon + 常驻侧栏 + 内容区（三段式稳定外壳）
+   AppShell：单侧栏 + 内容区（桌面常驻 / 移动抽屉复用同一主体）
    ============================================================ */
 
 export function AppShell({
@@ -476,34 +382,21 @@ export function AppShell({
 }) {
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
+  const { t } = useLang()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* ---- Ribbon：最左图标条（桌面端） ---- */}
-      <div className="bg-sidebar hidden w-[44px] shrink-0 flex-col items-center border-r py-2.5 md:flex">
-        <button onClick={() => navigate('/')} title="OWiki 总览" className="mb-2">
-          <Logo className="size-6" />
-        </button>
-        <button
-          onClick={() => navigate('/')}
-          title="全部 vault"
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-8 items-center justify-center rounded-md"
-        >
-          <Home className="size-4" />
-        </button>
-        <div className="flex-1" />
-        <ThemeButton theme={theme} toggle={toggle} />
-      </div>
-
       {/* ---- 常驻侧栏（桌面端） ---- */}
-      <aside className="bg-sidebar text-sidebar-foreground hidden w-[272px] shrink-0 border-r md:block">
+      <aside className="bg-sidebar text-sidebar-foreground hidden w-[260px] shrink-0 border-r md:block">
         <SidebarBody
           vaults={vaults}
           onRefresh={onRefresh}
           treeRefreshTick={treeRefreshTick}
           syncProgress={syncProgress}
           onLogout={onLogout}
+          theme={theme}
+          toggleTheme={toggle}
         />
       </aside>
 
@@ -514,16 +407,17 @@ export function AppShell({
           <button
             onClick={() => setDrawerOpen(true)}
             className="text-muted-foreground hover:bg-sidebar-accent rounded-md p-2"
-            title="打开侧栏"
+            title={t.nav.appName}
           >
             <Menu className="size-5" />
           </button>
           <button className="flex items-center gap-2" onClick={() => navigate('/')}>
             <Logo className="size-6" />
-            <span className="text-sm font-semibold">OWiki</span>
+            <span className="text-sm font-semibold">{t.nav.appName}</span>
           </button>
           <div className="flex-1" />
           <ThemeButton theme={theme} toggle={toggle} />
+          <LangButton />
         </div>
         {/* 移动端抽屉 */}
         {drawerOpen && (
@@ -540,6 +434,8 @@ export function AppShell({
                   onLogout?.()
                 }}
                 onNavigated={() => setDrawerOpen(false)}
+                theme={theme}
+                toggleTheme={toggle}
                 showClose
                 onClose={() => setDrawerOpen(false)}
               />

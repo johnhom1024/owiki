@@ -9,11 +9,13 @@ import { api, ConflictError, type FileDetail, type FileMeta } from '@/lib/api.ts
 import { preprocessObsidian } from '@/lib/obsidianMarkdown.ts'
 import { markdownComponents } from '@/components/ObsidianRender.tsx'
 import { ShareButton } from '@/components/ShareButton.tsx'
+import { useLang } from '@/i18n/LangProvider.tsx'
 import { cn } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
 
 export function FileViewPage() {
   const { vid, id } = useParams()
+  const { t } = useLang()
   const navigate = useNavigate()
   const fileId = Number(id)
 
@@ -58,7 +60,7 @@ export function FileViewPage() {
         setConflict(null)
         setForceNext(false)
       })
-      .catch((e) => setError(e instanceof Error ? e.message : '加载失败'))
+      .catch((e) => setError(e instanceof Error ? e.message : t.common.loadFailed))
   }, [fileId])
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export function FileViewPage() {
       setConflict(null)
       setForceNext(false)
       setEditing(false)
-      setNotice(res.merged ? '已自动合并远端修改并保存' : '已保存，正在同步到 Obsidian')
+      setNotice(res.merged ? t.fileView.merged : t.fileView.saved)
     } catch (e) {
       if (e instanceof ConflictError) {
         setConflict({
@@ -102,7 +104,7 @@ export function FileViewPage() {
           mergedHint: e.mergedHint,
         })
       } else {
-        setError(e instanceof Error ? e.message : '保存失败')
+        setError(e instanceof Error ? e.message : t.common.saveFailed)
       }
     } finally {
       setSaving(false)
@@ -112,8 +114,12 @@ export function FileViewPage() {
   // Obsidian 语法预处理（wikilink / 图片嵌入），仅在阅读模式做
   const rendered = useMemo(() => {
     if (!file) return null
-    return preprocessObsidian(file.content, file.vaultId, vaultFiles)
-  }, [file, vaultFiles])
+    return preprocessObsidian(file.content, file.vaultId, vaultFiles, {
+      attachNotSynced: t.obsidian.attachNotSynced,
+      embedNote: t.obsidian.embedNote,
+      notFound: t.obsidian.notFound,
+    })
+  }, [file, vaultFiles, t])
 
   // 附件（图片等二进制）：详情页直接展示本体
   const isAttachment = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|pdf)$/i.test(file?.path ?? '')
@@ -129,7 +135,7 @@ export function FileViewPage() {
             variant="ghost"
             size="icon"
             className="text-muted-foreground size-7"
-            title="返回 vault"
+            title={t.fileView.backToVault}
             onClick={() => navigate(`/vaults/${vid}`)}
           >
             <ChevronLeft className="size-4" />
@@ -147,7 +153,7 @@ export function FileViewPage() {
             {file && !editing && <ShareButton fileId={file.id} />}
             {!editing ? (
               <Button size="sm" onClick={() => setEditing(true)}>
-                <Pencil /> 编辑
+                <Pencil /> {t.fileView.edit}
               </Button>
             ) : (
               <>
@@ -160,10 +166,10 @@ export function FileViewPage() {
                     setConflict(null)
                   }}
                 >
-                  取消
+                  {t.common.cancel}
                 </Button>
                 <Button size="sm" disabled={saving} onClick={() => void save(false)}>
-                  {saving ? '保存中...' : '保存'}
+                  {saving ? t.common.saving : t.common.save}
                 </Button>
               </>
             )}
@@ -186,10 +192,10 @@ export function FileViewPage() {
       )}
       {conflict && (
         <div className="mb-4 space-y-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">远程已被修改，无法自动合并（同一处两边都改了）。</p>
+          <p className="font-medium">{t.fileView.conflictTitle}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => void save(true)}>
-              用我的覆盖远程
+              {t.fileView.overwriteRemote}
             </Button>
             <Button
               variant="outline"
@@ -204,7 +210,7 @@ export function FileViewPage() {
                 )
                 setConflict(null)
                 setEditing(false)
-                setNotice('已丢弃本地编辑，显示远程版本')
+                setNotice(t.fileView.droppedLocal)
               }}
             >
               用远程的
@@ -216,16 +222,16 @@ export function FileViewPage() {
                 setDraft(conflict.mergedHint || draft)
                 setConflict(null)
                 setForceNext(true)
-                setNotice('已插入冲突标记，请手工改完再保存（将覆盖远程）')
+                setNotice(t.fileView.insertedMarkers)
               }}
             >
-              查看冲突标记并手工改
+              {t.fileView.viewConflict}
             </Button>
           </div>
         </div>
       )}
 
-      {!file && !error && <p className="text-muted-foreground py-20 text-center">加载中...</p>}
+      {!file && !error && <p className="text-muted-foreground py-20 text-center">{t.common.loading}</p>}
 
       {file && editing && (
         <textarea

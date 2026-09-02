@@ -13,6 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { api, type VaultDetail, type VaultDevice, type VaultTokenInfo } from '@/lib/api.ts'
+import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { SyncLogCard } from '@/components/SyncLogCard.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -64,6 +65,8 @@ function upgradeToPageScheme(info: VaultTokenInfo | null): VaultTokenInfo | null
 
 export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: VaultSettingsPageProps = {}) {
   const { vid } = useParams()
+  const { t, lang } = useLang()
+  const locale = lang === 'en' ? 'en-US' : 'zh-CN'
   const navigate = useNavigate()
   const vaultId = Number(vid)
 
@@ -115,7 +118,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
         setDevices([])
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败')
+      setError(e instanceof Error ? e.message : t.common.loadFailed)
     }
   }, [vaultId])
 
@@ -135,12 +138,12 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
     setNotice(null)
     try {
       await api.updateVault(vaultId, { name: name.trim(), note: note.trim() })
-      setNotice('已保存')
+      setNotice(t.vaultSettings.saved)
       await load()
       // 首页卡片与侧栏展示 note/name，重查列表让改动立刻可见
       await onRefresh?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败')
+      setError(e instanceof Error ? e.message : t.common.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -149,11 +152,11 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
   const rotate = async () => {
     setError(null)
     try {
-      const t = await api.rotateVaultToken(vaultId)
-      setTokenInfo(t)
-      setNotice('令牌已重置，旧连接将失效')
+      const ti = await api.rotateVaultToken(vaultId)
+      setTokenInfo(ti)
+      setNotice(t.vaultSettings.rotateNotice)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '重置失败')
+      setError(e instanceof Error ? e.message : t.common.loadFailed)
     }
   }
 
@@ -172,11 +175,11 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       setPinnedId('')
       setSdDraftId('')
       // 令牌已被服务端作废，重新拉取新令牌供下次授权
-      const t = await api.getVaultToken(vaultId)
-      setTokenInfo(t)
-      setNotice('已取消授权，Obsidian 的连接已被断开')
+      const ti = await api.getVaultToken(vaultId)
+      setTokenInfo(ti)
+      setNotice(t.vaultSettings.revoked)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '取消授权失败')
+      setError(e instanceof Error ? e.message : t.vaultSettings.revokeFailed)
     } finally {
       setRevoking(false)
     }
@@ -191,14 +194,15 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       await api.setSingleDevice(vaultId, { singleDevice: on, pinnedDeviceId: on ? deviceId : '' })
       setSingleDevice(on)
       setPinnedId(on ? deviceId : '')
+      const devName = devices.find((d) => d.deviceId === deviceId)?.deviceName || t.vaultSettings.selectedDevice
       setNotice(
         on
-          ? `已开启单设备同步，此后只有「${devices.find((d) => d.deviceId === deviceId)?.deviceName || '所选设备'}」同步本 vault 的文件`
-          : '已关闭单设备同步，所有已授权设备恢复同步',
+          ? fill(t.vaultSettings.sdOnNotice, { name: devName })
+          : t.vaultSettings.sdOffNotice,
       )
       setSdDraft(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败')
+      setError(e instanceof Error ? e.message : t.common.saveFailed)
     } finally {
       setSdSaving(false)
     }
@@ -221,7 +225,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       await onRefresh?.()
       navigate('/')
     } catch (e) {
-      setError(e instanceof Error ? e.message : '删除失败')
+      setError(e instanceof Error ? e.message : t.common.deleteFailed)
     }
   }
 
@@ -229,19 +233,19 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
   const authorizeObsidian = () => {
     if (!tokenInfo) return
     window.location.href = tokenInfo.obsidianOAuth
-    setNotice('已唤起 Obsidian，请回到 Obsidian 确认授权')
+    setNotice(t.vaultSettings.obsidianLaunched)
   }
 
   if (!Number.isFinite(vaultId)) {
-    return <div className="p-8 text-destructive">无效的 vault id</div>
+    return <div className="p-8 text-destructive">{t.vaultSettings.invalidId}</div>
   }
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-8">
       <Button variant="ghost" size="sm" className="-ml-2 mb-4" onClick={() => navigate(-1)}>
-        <ArrowLeft /> 返回
+        <ArrowLeft /> {t.common.back}
       </Button>
-      <h1 className="mb-6 text-2xl font-bold">vault 设置</h1>
+      <h1 className="mb-6 text-2xl font-bold">{t.vaultSettings.title}</h1>
 
       {notice && (
         <div className="mb-4 rounded-md border border-primary/25 bg-primary/10 px-4 py-3 text-sm">
@@ -257,20 +261,20 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       {/* 基本信息 */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>基本信息</CardTitle>
-          <CardDescription>vault 的名称与备注</CardDescription>
+          <CardTitle>{t.vaultSettings.basicInfo}</CardTitle>
+          <CardDescription>{t.vaultSettings.basicInfoDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">名称</Label>
+            <Label htmlFor="name">{t.vaultSettings.nameLabel}</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="note">备注</Label>
+            <Label htmlFor="note">{t.vaultSettings.noteLabel}</Label>
             <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
           <Button disabled={saving || !name.trim()} onClick={() => void save()}>
-            {saving ? '保存中...' : '保存'}
+            {saving ? t.common.saving : t.common.save}
           </Button>
         </CardContent>
       </Card>
@@ -279,19 +283,19 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <KeyRound className="size-4" /> 同步 Obsidian
+            <KeyRound className="size-4" /> {t.vaultSettings.syncObsidian}
             {authorized ? (
               <Badge className="bg-primary">
-                <CheckCircle2 className="size-3" /> 已授权
+                <CheckCircle2 className="size-3" /> {t.vaultSettings.authorized}
               </Badge>
             ) : (
-              <Badge variant="secondary">未授权</Badge>
+              <Badge variant="secondary">{t.vaultSettings.unauthorized}</Badge>
             )}
           </CardTitle>
           <CardDescription>
             {authorized
-              ? `Obsidian 已配对连接过${lastSeenAt ? `，最近一次连接：${lastSeenAt}` : ''}`
-              : '在装了 owiki-sync 插件的 Obsidian 里授权连接这个 vault'}
+              ? t.vaultSettings.pairedDesc + (lastSeenAt ? fill(t.vaultSettings.lastSeenAt, { t: lastSeenAt }) : '')
+              : t.vaultSettings.unpairedDesc}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -300,11 +304,11 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
               <p className="text-muted-foreground flex items-center gap-2 text-sm">
                 <CheckCircle2 className="size-4 text-primary" />
                 {lastSeenAt
-                  ? `已于 ${lastSeenAt} 完成配对，最近连接正常`
-                  : '已完成配对'}
+                  ? fill(t.vaultSettings.pairedAt, { t: lastSeenAt })
+                  : t.vaultSettings.pairedNoTime}
               </p>
               <Button variant="outline" size="sm" onClick={authorizeObsidian} disabled={!tokenInfo}>
-                <ExternalLink /> 重新授权
+                <ExternalLink /> {t.vaultSettings.reauthorize}
               </Button>
               <Button
                 variant="outline"
@@ -313,16 +317,16 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                 disabled={revoking}
                 onClick={() => setConfirmRevoke(true)}
               >
-                <Ban /> {revoking ? '取消中...' : '取消授权'}
+                <Ban /> {revoking ? t.vaultSettings.revoking : t.vaultSettings.revoke}
               </Button>
             </div>
           ) : (
             <div className="flex items-center gap-3">
               <Button onClick={authorizeObsidian} disabled={!tokenInfo}>
-                <ExternalLink /> 一键授权连接 Obsidian
+                <ExternalLink /> {t.vaultSettings.oneClickAuth}
               </Button>
               <span className="text-muted-foreground text-xs">
-                点击后会唤起 Obsidian 并自动完成配置
+                {t.vaultSettings.oneClickHint}
               </span>
             </div>
           )}
@@ -330,14 +334,14 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
           <Dialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>确认取消「{vault?.name}」的授权？</DialogTitle>
+                <DialogTitle>{fill(t.vaultSettings.confirmRevokeTitle, { name: vault?.name ?? '' })}</DialogTitle>
                 <DialogDescription>
-                  取消后：同步令牌立即作废，所有已授权设备的连接会被断开，双方数据保留但不再同步。需要重新授权后才能恢复。
+                  {t.vaultSettings.confirmRevokeDesc}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirmRevoke(false)}>
-                  再想想
+                  {t.vaultSettings.thinkAgain}
                 </Button>
                 <Button
                   variant="destructive"
@@ -346,7 +350,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                     void revoke()
                   }}
                 >
-                  确认取消授权
+                  {t.vaultSettings.confirmRevoke}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -356,7 +360,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
           {devices.length > 0 && (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label>已授权设备（{devices.length}）</Label>
+                <Label>{fill(t.vaultSettings.authorizedDevices, { n: devices.length })}</Label>
                 <div className="divide-y rounded-md border">
                   {devices.map((d) => {
                     const isPinned = singleDevice && d.deviceId === pinnedId
@@ -365,7 +369,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                         <Laptop className="text-muted-foreground size-4 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate font-medium">{d.deviceName || '未命名设备'}</span>
+                            <span className="truncate font-medium">{d.deviceName || t.vaultSettings.unnamedDevice}</span>
                             {d.clientVersion && (
                               // 客户端插件版本：诊断兼容性时一眼看清每台设备在用哪个版本
                               <span className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]">
@@ -374,12 +378,12 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                             )}
                             {isPinned && (
                               <Badge className="shrink-0">
-                                <MonitorCheck className="size-3" /> 同步设备
+                                <MonitorCheck className="size-3" /> {t.vaultSettings.syncDevice}
                               </Badge>
                             )}
                             {singleDevice && !isPinned && (
                               <Badge variant="secondary" className="shrink-0">
-                                非同步设备
+                                {t.vaultSettings.nonSyncDevice}
                               </Badge>
                             )}
                           </div>
@@ -388,7 +392,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                             type="button"
                             className="group/id text-muted-foreground hover:text-foreground mt-0.5 flex max-w-full items-center gap-1 text-left font-mono text-xs break-all"
                             onClick={() => void copyDeviceId(d.deviceId)}
-                            title="点击复制设备 ID"
+                            title={t.vaultSettings.copyDeviceId}
                           >
                             <span>{d.deviceId}</span>
                             {copiedDeviceId === d.deviceId ? (
@@ -398,7 +402,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                             )}
                           </button>
                           <div className="text-muted-foreground truncate text-xs">
-                            最近在线 {new Date(d.lastSeenAt).toLocaleString('zh-CN')}
+                            {fill(t.vaultSettings.lastOnline, { t: new Date(d.lastSeenAt).toLocaleString(locale) })}
                           </div>
                         </div>
                       </div>
@@ -413,17 +417,16 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                   {/* 描述区必须 flex-1 + min-w-0，否则长描述会撑开并把 Switch 挤出可视区 */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 text-sm font-medium">
-                      <MonitorCheck className="size-4" /> 单设备同步
+                      <MonitorCheck className="size-4" /> {t.vaultSettings.singleDevice}
                     </div>
                     <p className="text-muted-foreground mt-1 text-xs">
-                      开启后只有选定的那一台设备会同步文件：其他设备仍可连接授权（出现在列表中，随时可切换为同步设备），
-                      但其文件变更不会被同步。适合多台机器已由 iCloud 等网盘同步、只想让一台设备上传服务器的场景。
+                      {t.vaultSettings.singleDeviceDesc}
                     </p>
                   </div>
                   <Switch
                     checked={singleDevice}
                     disabled={sdSaving || devices.length === 0}
-                    aria-label="单设备同步开关"
+                    aria-label={t.vaultSettings.singleDevice}
                     onChange={(e) => {
                       const on = e.target.checked
                       // 首次开启默认 pin 最近在线的设备（列表第一台），走确认弹窗
@@ -434,7 +437,7 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
 
                 {singleDevice && (
                   <div className="space-y-2">
-                    <Label htmlFor="single-device-select">作为同步设备的设备</Label>
+                    <Label htmlFor="single-device-select">{t.vaultSettings.singleDeviceSelect}</Label>
                     <div className="flex items-center gap-2">
                       <select
                         id="single-device-select"
@@ -449,13 +452,13 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                       >
                         {devices.map((d) => (
                           <option key={d.id} value={d.deviceId}>
-                            {d.deviceName || '未命名设备'}（{d.deviceId.slice(0, 8)}…）
+                            {d.deviceName || t.vaultSettings.unnamedDevice}（{d.deviceId.slice(0, 8)}…）
                           </option>
                         ))}
                       </select>
                     </div>
                     <p className="text-muted-foreground text-xs">
-                      切换后原设备立即停止同步（连接保持，其上会提示「非同步设备」），新选定的设备自动开始同步。
+                      {t.vaultSettings.singleDeviceSwitchHint}
                     </p>
                   </div>
                 )}
@@ -468,19 +471,21 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {sdDraft?.on ? '开启单设备同步？' : '关闭单设备同步？'}
+                  {sdDraft?.on ? t.vaultSettings.confirmSdOnTitle : t.vaultSettings.confirmSdOffTitle}
                 </DialogTitle>
                 <DialogDescription>
                   {sdDraft?.on
-                    ? `开启后只有「${
-                        devices.find((d) => d.deviceId === sdDraft?.deviceId)?.deviceName || '所选设备'
-                      }」会同步本 vault 的文件：其他设备连接保持，但其修改不会被同步（其上会显示「非同步设备」）。`
-                    : '关闭后所有已授权设备恢复同步。'}
+                    ? fill(t.vaultSettings.confirmSdOnDesc, {
+                        name:
+                          devices.find((d) => d.deviceId === sdDraft?.deviceId)?.deviceName ||
+                          t.vaultSettings.selectedDevice,
+                      })
+                    : t.vaultSettings.confirmSdOffDesc}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setSdDraft(null)} disabled={sdSaving}>
-                  再想想
+                  {t.vaultSettings.thinkAgain}
                 </Button>
                 <Button
                   onClick={() => {
@@ -488,30 +493,30 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
                   }}
                   disabled={sdSaving}
                 >
-                  {sdSaving ? '保存中...' : '确认'}
+                  {sdSaving ? t.common.saving : t.common.confirm}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <div className="space-y-2">
-            <Label>服务器地址（手动配置用）</Label>
+            <Label>{t.vaultSettings.serverUrl}</Label>
             <code className="bg-muted block truncate rounded-md px-3 py-2 text-sm">
               {tokenInfo?.serverUrl ?? '...'}
             </code>
           </div>
           <div className="space-y-2">
-            <Label>同步令牌</Label>
+            <Label>{t.vaultSettings.syncToken}</Label>
             <div className="flex items-center gap-2">
               <code className="bg-muted block flex-1 truncate rounded-md px-3 py-2 font-mono text-sm">
                 {tokenInfo?.token ?? '...'}
               </code>
-              <Button variant="outline" size="icon" onClick={() => void rotate()} title="重置令牌">
+              <Button variant="outline" size="icon" onClick={() => void rotate()} title={t.vaultSettings.rotateToken}>
                 <RefreshCw />
               </Button>
             </div>
             <p className="text-muted-foreground text-xs">
-              重置后旧令牌立即失效，所有已连接的客户端需要重新授权
+              {t.vaultSettings.rotateDesc}
             </p>
           </div>
         </CardContent>
@@ -523,29 +528,29 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
       {/* 危险区 */}
       <Card className="border-destructive/40">
         <CardHeader>
-          <CardTitle className="text-destructive">删除 vault</CardTitle>
+          <CardTitle className="text-destructive">{t.vaultSettings.dangerZone}</CardTitle>
           <CardDescription>
-            删除后该 vault 的全部笔记（{vault ? '含已同步文件' : ''}）都会被清除，不可恢复
+            {t.vaultSettings.dangerDesc}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
             <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-              <Trash2 /> 删除这个 vault
+              <Trash2 /> {t.vaultSettings.deleteVault}
             </Button>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>确认删除「{vault?.name}」？</DialogTitle>
+                <DialogTitle>{fill(t.vaultSettings.confirmDeleteTitle, { name: vault?.name ?? '' })}</DialogTitle>
                 <DialogDescription>
-                  该 vault 的所有笔记数据将从服务器上永久删除。Obsidian 本地文件不受影响。
+                  {t.vaultSettings.confirmDeleteDesc}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-                  取消
+                  {t.common.cancel}
                 </Button>
                 <Button variant="destructive" onClick={() => void remove()}>
-                  确认删除
+                  {t.vaultSettings.confirmDelete}
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, RateLimitError } from '@/lib/api.ts'
+import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button.tsx'
 import { Input } from '@/components/ui/input.tsx'
@@ -20,6 +21,7 @@ import {
  */
 export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
   const navigate = useNavigate()
+  const { t, toggle } = useLang()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -46,7 +48,9 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
   const errText = (err: unknown, fallback: string) => {
     if (err instanceof RateLimitError) {
       const mins = Math.ceil(err.retryAfter / 60)
-      return `尝试次数过多，已临时锁定，请约 ${mins >= 1 ? `${mins} 分钟` : `${err.retryAfter} 秒`}后再试`
+      return mins >= 1
+        ? fill(t.login.rateLimitedMin, { n: mins })
+        : fill(t.login.rateLimitedSec, { n: err.retryAfter })
     }
     if (err instanceof Error && err.message !== 'unauthorized' && err.message !== 'rate limited') {
       return err.message
@@ -62,7 +66,6 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
     try {
       const res = await api.login({ username, password })
       if (res.needTotp && res.totpTicket) {
-        // 密码正确，但启用了二次认证 → 切换到第二步
         setTotpTicket(res.totpTicket)
         setPassword('')
         return
@@ -70,10 +73,8 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
       onLoggedIn()
       navigate('/', { replace: true })
     } catch (err) {
-      // 失败清空密码框：避免反复试错时残留旧密码造成误提交
       setPassword('')
-      setError(errText(err, '登录失败，请检查用户名和密码'))
-      // 焦点回到密码框，方便直接重输
+      setError(errText(err, t.login.failed))
       requestAnimationFrame(() => document.getElementById('password')?.focus())
     } finally {
       setSubmitting(false)
@@ -91,7 +92,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
       navigate('/', { replace: true })
     } catch (err) {
       setTotpCode('')
-      setError(errText(err, '验证码错误或已过期'))
+      setError(errText(err, t.login.totpFailed))
       requestAnimationFrame(() => totpInputRef.current?.focus())
     } finally {
       setSubmitting(false)
@@ -108,23 +109,27 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+      {/* 语言切换：登录页也可用 */}
+      <button
+        onClick={toggle}
+        className="text-muted-foreground hover:text-foreground fixed top-4 right-4 rounded-md border px-2.5 py-1 text-xs font-semibold"
+      >
+        {t.nav.langToggle}
+      </button>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="mb-2 flex items-center gap-2">
             <Logo className="size-9" />
-            <CardTitle className="text-xl">OWiki 登录</CardTitle>
+            <CardTitle className="text-xl">{t.login.title}</CardTitle>
           </div>
           <CardDescription>
-            {totpTicket ? '已启用二次认证，请输入动态验证码' : 'OWiki · 自部署笔记同步服务，请登录后继续'}
+            {totpTicket ? t.login.totpDesc : t.login.desc}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {initialized === false && !totpTicket && (
             <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
-              管理员尚未初始化。请在服务端设置环境变量{' '}
-              <code className="font-mono">OWIKI_ADMIN_USER</code> /{' '}
-              <code className="font-mono">OWIKI_ADMIN_PASSWORD</code>{' '}
-              后重启服务，再回来登录。
+              {t.login.notInitialized}
             </div>
           )}
 
@@ -132,7 +137,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
             /* ---------- 第二步：TOTP 验证码 ---------- */
             <form onSubmit={submitTotp} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="totp-code">动态验证码</Label>
+                <Label htmlFor="totp-code">{t.login.totpLabel}</Label>
                 <Input
                   id="totp-code"
                   ref={totpInputRef}
@@ -141,27 +146,25 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
                   maxLength={6}
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="6 位数字"
+                  placeholder={t.login.totpPlaceholder}
                   className="text-center font-mono text-lg tracking-[0.5em]"
                   required
                 />
-                <p className="text-muted-foreground text-xs">
-                  打开你的验证器 App（Google Authenticator / 1Password 等），输入当前显示的 6 位码
-                </p>
+                <p className="text-muted-foreground text-xs">{t.login.totpHint}</p>
               </div>
               {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
               <Button type="submit" className="w-full" disabled={submitting || totpCode.length !== 6}>
-                {submitting ? '验证中…' : '验证并登录'}
+                {submitting ? t.login.totpSubmitting : t.login.totpSubmit}
               </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={backToPassword}>
-                返回重新输入密码
+                {t.login.backToPassword}
               </Button>
             </form>
           ) : (
             /* ---------- 第一步：用户名 + 密码 ---------- */
             <form onSubmit={submit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">用户名</Label>
+                <Label htmlFor="username">{t.login.username}</Label>
                 <Input
                   id="username"
                   autoComplete="username"
@@ -172,7 +175,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">密码</Label>
+                <Label htmlFor="password">{t.login.password}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -184,7 +187,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
               </div>
               {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? '登录中…' : '登录'}
+                {submitting ? t.login.submitting : t.login.submit}
               </Button>
             </form>
           )}

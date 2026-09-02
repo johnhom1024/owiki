@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react'
 import { type FileMeta } from '@/lib/api.ts'
+import { useLang } from '@/i18n/LangProvider.tsx'
 import { cn } from '@/lib/utils.ts'
 
 export interface FileTreeNode {
@@ -63,6 +64,7 @@ export function FileTree({
   onOpenFile?: (file: FileMeta) => void
 }) {
   const tree = useMemo(() => buildFileTree(files), [files])
+  const { t } = useLang()
   // 默认全部收起：expanded 集合为空表示全部收起
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -76,7 +78,7 @@ export function FileTree({
   }
 
   if (tree.length === 0) {
-    return <p className="text-muted-foreground px-3 py-4 text-xs">还没有文件</p>
+    return <p className="text-muted-foreground px-3 py-4 text-xs">{t.fileTree.empty}</p>
   }
 
   return (
