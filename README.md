@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.svg" width="96" height="96" alt="OWiki">
+
 # OWiki
 
 自部署的 Obsidian 同步 + Wiki 服务
