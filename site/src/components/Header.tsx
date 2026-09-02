@@ -18,6 +18,7 @@ export function Header() {
   }, [])
 
   const links = [
+    { href: '#wiki', label: t.nav.wiki },
     { href: '#features', label: t.nav.features },
     { href: '#architecture', label: t.nav.architecture },
     { href: '#sync', label: t.nav.sync },

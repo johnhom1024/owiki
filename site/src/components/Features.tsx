@@ -1,4 +1,4 @@
-import { Bot, GitMerge, Globe, Radio, Share2, ShieldCheck, Zap, type LucideIcon } from 'lucide-react'
+import { BookOpen, Bot, GitMerge, Globe, Radio, Share2, ShieldCheck, Zap, type LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
 import { SpotlightCard } from './SpotlightCard'
 
@@ -7,6 +7,7 @@ const icons: Record<string, LucideIcon> = {
   radio: Radio,
   gitMerge: GitMerge,
   globe: Globe,
+  bookOpen: BookOpen,
   shieldCheck: ShieldCheck,
   bot: Bot,
   share2: Share2,

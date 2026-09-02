@@ -16,7 +16,7 @@ export function Footer() {
         <p className="text-sm text-muted">{t.footer.tagline}</p>
 
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-          <a href="#features" className="text-muted transition-colors hover:text-ink">
+          <a href="#wiki" className="text-muted transition-colors hover:text-ink">
             {t.footer.links.product}
           </a>
           <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-muted transition-colors hover:text-ink">

@@ -8,6 +8,7 @@ const zh = {
     body: 'OWiki 目前处于早期试验性阶段，同步逻辑尚未经过大规模验证，极端场景下可能导致笔记数据丢失或损坏。请在接入前为你的 Obsidian 仓库做好额外备份（建议保留一份独立于同步链路的完整拷贝）。因使用本项目造成的任何数据丢失，概不负责。',
   },
   nav: {
+    wiki: 'Wiki',
     features: '特性',
     sync: '同步原理',
     architecture: '架构',
@@ -20,13 +21,13 @@ const zh = {
   },
   hero: {
     badge: '开源 · MIT License',
-    title1: '你的 Obsidian 笔记库',
-    title2: '实时同步 · 完全自持',
+    title1: '把 Obsidian 笔记库',
+    title2: '变成你的 Wiki 网站',
     subtitle:
-      '多端同步笔记，浏览器随处访问你的笔记库，把笔记库交给 AI 助手打理——数据只存在你自己的机器上。',
+      '库还是那个库。打开网址就能浏览、搜索、编辑，像读网站一样读自己的笔记——同步、分享、AI 都在同一台机器上。',
     ctaPrimary: '快速开始',
     ctaSecondary: '查看源码',
-    chips: ['数据只在你机器上', '多端实时同步', '冲突不丢内容', 'AI 开放接口'],
+    chips: ['Obsidian 变 Wiki 网站', '多端实时同步', '冲突不丢内容', 'AI 开放接口'],
     demo: {
       title: '同步中',
       mac: 'Mac · Obsidian',
@@ -59,9 +60,14 @@ const zh = {
         desc: '两台设备同时改一篇笔记，能自动合并的自动合并，合不了的另存 xxx.conflict.md 副本——本地文件永不被静默覆盖。',
       },
       {
+        icon: 'bookOpen',
+        title: 'Obsidian 变 Wiki 网站',
+        desc: '笔记库同步上来，浏览器打开就是你的个人 Wiki：目录、搜索、阅读、编辑都在网页上，不用装 Obsidian。',
+      },
+      {
         icon: 'globe',
-        title: 'Web 管理端',
-        desc: '手机、公司电脑、任何浏览器打开网址，就能浏览、搜索、编辑笔记。设备授权、同步日志也都在网页上管理。',
+        title: '任何设备打开就能用',
+        desc: '手机、公司电脑、平板，打开网址就能进自己的 Wiki。设备授权、同步日志也都在网页上。',
       },
       {
         icon: 'shieldCheck',
@@ -211,6 +217,15 @@ mv main.js manifest.json styles.css \\
     ],
     note: '生产环境请务必修改 OWIKI_TOKEN 与管理员密码，并置于反向代理（caddy / nginx）之后启用 TLS。',
   },
+  wiki: {
+    title: 'Obsidian 库，浏览器里就是 Wiki',
+    subtitle: '不用导出、不用另写一套站点——打开网址，笔记已经是网站',
+    desc: 'Obsidian 继续在本地写。同步到 OWiki 之后，同一份 Markdown 在网页上按目录展开、能搜、能点进一篇读完再改。朋友不用装 Obsidian，你自己出差也不用带库。',
+    pointBrowse: '左侧目录就是库结构，文件夹和笔记原样展开',
+    pointSearch: '按标题、路径搜全文，几百篇笔记几秒找到',
+    pointRead: '打开一篇就是阅读页，wikilink、图片、附件都能看',
+    pointAnywhere: '手机浏览器也能进，不必在每台设备装 Obsidian',
+  },
   share: {
     title: '把笔记分享给任何人',
     subtitle: '公开只读链接 · 无需账号 · 随时关闭',
@@ -274,7 +289,11 @@ curl -s -X POST \\
     items: [
       {
         q: '和 Obsidian 官方 Sync、iCloud 同步有什么区别？',
-        a: '官方 Sync 按月订阅且数据在官方服务器；iCloud 在多平台可靠性和版本控制上有限制。OWiki 数据完全自持——明文 SQLite 文件在你自己的机器上，设备数量没有订阅门槛，还能给 AI 开放读写。',
+        a: '官方 Sync 按月订阅且数据在官方服务器；iCloud 在多平台可靠性和版本控制上有限制。OWiki 数据完全自持——明文 SQLite 文件在你自己的机器上，设备数量没有订阅门槛。同步上来的笔记库同时就是一个可浏览、可搜索的 Wiki 网站，还能给 AI 开放读写。',
+      },
+      {
+        q: '这和 Publish / 静态 Wiki 生成器有什么区别？',
+        a: '不用另写一套站点、也不用每次构建发布。Obsidian 里保存，网页上几秒就能读到同一篇——阅读、编辑、分享都在这份库上，不是导出的副本。',
       },
       {
         q: '同步会不会丢数据？',
@@ -291,7 +310,7 @@ curl -s -X POST \\
     ],
   },
   footer: {
-    tagline: '自部署的 Obsidian 笔记同步服务',
+    tagline: '自部署的 Obsidian 同步 + Wiki',
     links: {
       product: '产品',
       repo: '仓库',
@@ -309,6 +328,7 @@ const en: Content = {
     body: 'OWiki is in an early experimental stage. The sync logic has not been validated at scale, and edge cases may cause note data loss or corruption. Back up your Obsidian vault before connecting (keep a full copy independent of the sync pipeline). We are not responsible for any data loss caused by using this project.',
   },
   nav: {
+    wiki: 'Wiki',
     features: 'Features',
     sync: 'How it works',
     architecture: 'Architecture',
@@ -321,13 +341,13 @@ const en: Content = {
   },
   hero: {
     badge: 'Open source · MIT License',
-    title1: 'Your Obsidian vault.',
-    title2: 'Synced in real time. Self-hosted.',
+    title1: 'Turn your Obsidian vault',
+    title2: 'into a wiki website',
     subtitle:
-      'Sync notes across devices, reach your vault from any browser, hand your AI assistant the keys — your data stays on your own machine.',
+      'Same vault. Open a URL and browse, search, edit — read your notes like a website. Sync, sharing and AI all live on your own machine.',
     ctaPrimary: 'Get started',
     ctaSecondary: 'View source',
-    chips: ['Data stays on your machine', 'Realtime multi-device sync', 'Conflicts never lose content', 'Open AI API'],
+    chips: ['Obsidian becomes a wiki', 'Realtime multi-device sync', 'Conflicts never lose content', 'Open AI API'],
     demo: {
       title: 'Syncing',
       mac: 'Mac · Obsidian',
@@ -360,9 +380,14 @@ const en: Content = {
         desc: 'When two devices edit the same note, mergeable changes merge automatically; the rest are saved as xxx.conflict.md copies — your local file is never silently overwritten.',
       },
       {
+        icon: 'bookOpen',
+        title: 'Obsidian becomes a wiki',
+        desc: 'Once the vault is synced, open a browser and it is your personal wiki: folders, search, reading and editing — no Obsidian install required.',
+      },
+      {
         icon: 'globe',
-        title: 'Web console',
-        desc: 'Open a URL on your phone, work laptop, any browser — and read, search, edit your notes. Device authorization and sync logs live on the same web page.',
+        title: 'Any device, just a URL',
+        desc: 'Phone, work laptop, tablet — open the URL and you are in your wiki. Device authorization and sync logs live on the same page.',
       },
       {
         icon: 'shieldCheck',
@@ -512,6 +537,15 @@ mv main.js manifest.json styles.css \\
     ],
     note: 'In production, always change OWIKI_TOKEN and the admin password, and put OWiki behind a reverse proxy (caddy / nginx) for TLS.',
   },
+  wiki: {
+    title: 'Your Obsidian vault, a wiki in the browser',
+    subtitle: 'No export, no second site — open the URL and the notes already are the website',
+    desc: 'Keep writing in Obsidian. Once it syncs to OWiki, the same Markdown opens as a site: folders, search, a reading page, then edit if you want. Friends do not need Obsidian; you do not need the vault on every machine.',
+    pointBrowse: 'The sidebar is your vault: folders and notes, as they are',
+    pointSearch: 'Search by title or path — hundreds of notes, a few seconds',
+    pointRead: 'Open a note and read it: wikilinks, images, attachments included',
+    pointAnywhere: 'A phone browser is enough — no Obsidian install on every device',
+  },
   share: {
     title: 'Share any note with anyone',
     subtitle: 'Public read-only links · no account needed · close anytime',
@@ -575,7 +609,11 @@ curl -s -X POST \\
     items: [
       {
         q: 'How is this different from Obsidian Sync or iCloud?',
-        a: 'Official Sync is a subscription with data on their servers; iCloud has reliability and versioning limits. OWiki keeps data fully yours — a plain SQLite file on your own machine, unlimited devices, and an open API for AI.',
+        a: 'Official Sync is a subscription with data on their servers; iCloud has reliability and versioning limits. OWiki keeps data fully yours — a plain SQLite file on your own machine, unlimited devices. The synced vault is also a browsable, searchable wiki, plus an open API for AI.',
+      },
+      {
+        q: 'How is this different from Publish or a static wiki generator?',
+        a: 'No second site to write, no rebuild-and-publish cycle. Save in Obsidian and the same note is readable on the web seconds later — reading, editing and sharing all happen on this vault, not on an exported copy.',
       },
       {
         q: 'Can sync lose my data?',
@@ -592,7 +630,7 @@ curl -s -X POST \\
     ],
   },
   footer: {
-    tagline: 'Self-hosted Obsidian sync service',
+    tagline: 'Self-hosted Obsidian sync + wiki',
     links: {
       product: 'Product',
       repo: 'Repository',

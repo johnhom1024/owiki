@@ -1,6 +1,6 @@
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
-import { Screenshot } from './components/Screenshot'
+import { Wiki } from './components/Wiki'
 import { Features } from './components/Features'
 import { Architecture } from './components/Architecture'
 import { SyncHow } from './components/SyncHow'
@@ -17,7 +17,7 @@ export default function App() {
       <Header />
       <main>
         <Hero />
-        <Screenshot />
+        <Wiki />
         <Features />
         <Architecture />
         <SyncHow />
