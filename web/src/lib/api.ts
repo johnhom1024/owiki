@@ -247,6 +247,9 @@ export const api = {
   listVaultFiles: (vid: number) =>
     get<{ data: FileMeta[]; total: number }>(`/api/vaults/${vid}/files`),
   getVaultStats: (vid: number) => get<Stats>(`/api/vaults/${vid}/stats`),
+  /** 按路径解析文件元数据（首页「最近动态」跳转详情用） */
+  resolveVaultFile: (vid: number, path: string) =>
+    get<{ data: FileMeta }>(`/api/vaults/${vid}/resolve?path=${encodeURIComponent(path)}`),
 
   // ---------- 文件读写（跨 vault 的旧接口，按 id） ----------
   listFiles: () => get<{ data: FileMeta[]; total: number }>('/api/files'),

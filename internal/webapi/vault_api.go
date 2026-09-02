@@ -437,6 +437,25 @@ func RegisterVaultRoutes(api *gin.RouterGroup, vaultRepo *repository.VaultRepo, 
 		c.JSON(http.StatusOK, note)
 	})
 
+	// 按路径解析文件 id（首页「最近动态」点击跳详情用）：?path=日记/2026-09-02.md
+	vg.GET("/resolve", func(c *gin.Context) {
+		path := c.Query("path")
+		if path == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "path required"})
+			return
+		}
+		note, err := repo.GetByPath(c.Request.Context(), c.GetInt64("vid"), path)
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": note})
+	})
+
 	// 附件下载：<img src="/api/vaults/:vid/attachments/*path">
 	vg.GET("/attachments/*path", func(c *gin.Context) {
 		path := c.Param("path")[1:] // 去掉前导 /
