@@ -19,6 +19,10 @@ Sync notes across devices · Reach your vault from any browser · Let an AI assi
 
 [简体中文](README.md) | English
 
+<p>
+  <img src="docs/screenshots/home-en.jpg" alt="OWiki web console" width="820">
+</p>
+
 </div>
 
 ---
@@ -47,7 +51,6 @@ Three steps: start the server → create a vault → install the plugin.
 ```bash
 docker run -d --name owiki \
   -p 8787:8787 \
-  -e OWIKI_TOKEN=<sync-token> \
   -e OWIKI_ADMIN_PASSWORD=<strong-password> \
   -v ./owiki-data:/data \
   johnhom1024/owiki:latest
@@ -66,7 +69,6 @@ services:
     environment:
       OWIKI_DB: /data/owiki.db
       OWIKI_ADDR: ':8787'
-      OWIKI_TOKEN: ${OWIKI_TOKEN}
       OWIKI_ADMIN_USER: admin
       OWIKI_ADMIN_PASSWORD: ${OWIKI_ADMIN_PASSWORD}
     volumes:
@@ -77,13 +79,13 @@ services:
 ```bash
 # CN registry mirror (CNB, no login required)
 docker run -d --name owiki -p 8787:8787 \
-  -e OWIKI_TOKEN=... -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
+  -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
   docker.cnb.cool/johnhom1024/owiki:latest
 
 # Build from source
 git clone https://github.com/johnhom1024/owiki
 cd owiki
-make run   # :8787, default token: dev-token-change-me
+make run   # :8787
 ```
 
 </details>
@@ -116,7 +118,7 @@ The first connection reconciles automatically: remote-only files come down, loca
 
 | Env var | Default | Description |
 |---|---|---|
-| `OWIKI_TOKEN` | `dev-token-change-me` | Sync token — change it in production |
+| `OWIKI_TOKEN` | empty | Legacy-migration only; new installs create vaults in the web UI, each with its own token |
 | `OWIKI_ADMIN_USER` | `admin` | Web console login user (initialized on first boot) |
 | `OWIKI_ADMIN_PASSWORD` | empty | Web console login password — change it in production |
 | `OWIKI_ADDR` | `:8787` | Listen address |
@@ -150,7 +152,7 @@ Issues and PRs are welcome. Run `go test ./... && go vet ./...` before committin
 
 ## 🔒 Security
 
-- Always change `OWIKI_TOKEN` and the admin password in production
+- Always change the admin password in production; each vault gets its own sync token in the web UI
 - The server does not terminate TLS itself — put it behind a reverse proxy (caddy / nginx)
 - Please do not open public issues for vulnerabilities: see [SECURITY.md](SECURITY.md)
 

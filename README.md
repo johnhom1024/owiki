@@ -19,6 +19,10 @@
 
 简体中文 | [English](README.en.md)
 
+<p>
+  <img src="docs/screenshots/home-zh.jpg" alt="OWiki 管理端首页" width="820">
+</p>
+
 </div>
 
 ---
@@ -47,7 +51,6 @@
 ```bash
 docker run -d --name owiki \
   -p 8787:8787 \
-  -e OWIKI_TOKEN=<同步令牌> \
   -e OWIKI_ADMIN_PASSWORD=<强密码> \
   -v ./owiki-data:/data \
   johnhom1024/owiki:latest
@@ -66,7 +69,6 @@ services:
     environment:
       OWIKI_DB: /data/owiki.db
       OWIKI_ADDR: ':8787'
-      OWIKI_TOKEN: ${OWIKI_TOKEN}
       OWIKI_ADMIN_USER: admin
       OWIKI_ADMIN_PASSWORD: ${OWIKI_ADMIN_PASSWORD}
     volumes:
@@ -77,13 +79,13 @@ services:
 ```bash
 # 国内镜像源（CNB 制品库，免登录拉取）
 docker run -d --name owiki -p 8787:8787 \
-  -e OWIKI_TOKEN=... -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
+  -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
   docker.cnb.cool/johnhom1024/owiki:latest
 
 # 从源码构建
 git clone https://github.com/johnhom1024/owiki
 cd owiki
-make run   # :8787，默认 token: dev-token-change-me
+make run   # :8787
 ```
 
 </details>
@@ -116,7 +118,7 @@ make run   # :8787，默认 token: dev-token-change-me
 
 | 环境变量 | 默认值 | 说明 |
 |---|---|---|
-| `OWIKI_TOKEN` | `dev-token-change-me` | 同步令牌，生产必改 |
+| `OWIKI_TOKEN` | 空 | 仅旧库迁移用；全新部署在 Web 端新建 vault，各自生成独立令牌 |
 | `OWIKI_ADMIN_USER` | `admin` | Web 管理端登录用户（首启初始化） |
 | `OWIKI_ADMIN_PASSWORD` | 空 | Web 管理端登录密码，生产必改 |
 | `OWIKI_ADDR` | `:8787` | 监听地址 |
@@ -150,7 +152,7 @@ curl -s -X POST "http://localhost:8787/openapi/vaults/1/notes/AI/新文章.md" \
 
 ## 🔒 安全
 
-- 生产务必改 `OWIKI_TOKEN` 与管理员密码
+- 生产务必改管理员密码；每个 vault 的同步令牌在 Web 端各自生成
 - 服务默认无 TLS，建议置于反向代理（caddy / nginx）之后
 - 报告安全漏洞请勿开公开 Issue，见 [SECURITY.md](SECURITY.md)
 
