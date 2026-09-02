@@ -3,6 +3,10 @@ export type Lang = 'zh' | 'en'
 export const REPO_URL = 'https://github.com/johnhom1024/owiki'
 
 const zh = {
+  notice: {
+    title: '试验性阶段提醒',
+    body: 'OWiki 目前处于早期试验性阶段，同步逻辑尚未经过大规模验证，不当配置或异常场景下可能导致笔记数据丢失或损坏。请在接入前为你的 Obsidian 仓库做好额外备份（建议保留一份独立于同步链路的完整拷贝）。因使用本项目造成的任何数据丢失，概不负责。',
+  },
   nav: {
     features: '特性',
     sync: '同步原理',
@@ -250,7 +254,7 @@ curl -s -X POST \\
       },
       {
         q: '同步会不会丢数据？',
-        a: '不会静默覆盖。每次写入带 baseHash 乐观锁：能按行三方合并的自动合成；合不了的冲突在 Web 端三选一处理，插件端会另存 xxx.conflict.md，原文件内容始终保留。',
+        a: '设计上不会静默覆盖：每次写入带 baseHash 乐观锁，能按行三方合并的自动合成，合不了的冲突在 Web 端三选一处理，插件端会另存 xxx.conflict.md。但请注意，OWiki 仍处于试验性阶段，未经大规模验证，极端场景下仍可能丢数据——接入前请务必为 vault 做好额外备份。',
       },
       {
         q: '手机 / 平板能用吗？',
@@ -276,6 +280,10 @@ curl -s -X POST \\
 export type Content = typeof zh
 
 const en: Content = {
+  notice: {
+    title: 'Experimental software',
+    body: 'OWiki is in an early experimental stage. The sync logic has not been validated at scale, and improper configuration or edge cases may cause note data loss or corruption. Back up your Obsidian vault before connecting (keep a full copy independent of the sync pipeline). We are not responsible for any data loss caused by using this project.',
+  },
   nav: {
     features: 'Features',
     sync: 'How it works',
@@ -523,7 +531,7 @@ curl -s -X POST \\
       },
       {
         q: 'Can sync lose my data?',
-        a: 'Never silently. Every write carries a baseHash optimistic lock: mergeable changes merge line-by-line; conflicts surface as a 3-way choice on the web or a xxx.conflict.md copy in the plugin — original content is always preserved.',
+        a: 'By design, never silently: every write carries a baseHash optimistic lock, mergeable changes merge line-by-line, and conflicts surface as a 3-way choice on the web or a xxx.conflict.md copy in the plugin. That said, OWiki is still experimental and not validated at scale — extreme edge cases may still lose data, so always keep an extra backup of your vault before connecting.',
       },
       {
         q: 'Does it work on mobile?',

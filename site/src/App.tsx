@@ -1,4 +1,5 @@
 import { Header } from './components/Header'
+import { ExperimentalNotice } from './components/ExperimentalNotice'
 import { Hero } from './components/Hero'
 import { Features } from './components/Features'
 import { Architecture } from './components/Architecture'
@@ -14,6 +15,7 @@ export default function App() {
     <div className="min-h-screen">
       <Header />
       <main>
+        <ExperimentalNotice />
         <Hero />
         <Features />
         <Architecture />

@@ -26,11 +26,8 @@ Hero（含同步动画演示图）→ 特性 → 同步原理（含协议表）�
 
 ## 发布
 
-构建产物是纯静态文件，可发布到 static-hub（`https://static.johnhong.cn/app/<appId>`）：
+部署在 **GitHub Pages**：https://johnhom1024.github.io/owiki/
 
-```bash
-pnpm build
-cd dist && zip -r site.zip . && curl -X POST https://static.johnhong.cn/api/apps/upload -F "name=owiki-site" -F "archive=@site.zip"
-```
+`.github/workflows/site.yml` 在 push main 且 `site/**` 有变更时自动构建部署（`SITE_BASE=/owiki/`），无需手动操作；也可在 Actions 页手动 workflow_dispatch。
 
 > 注意：`site/` 不在 `.cnb.yml` 的 `ifModify` 白名单里，改动不会触发 Docker 镜像构建。
