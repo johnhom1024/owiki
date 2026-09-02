@@ -1,4 +1,4 @@
-import { Database, EyeOff, Lock, Server, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, Database, EyeOff, Lock, Server, type LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
 import { SectionHeading } from './Features'
 import { SpotlightCard } from './SpotlightCard'
@@ -17,6 +17,21 @@ export function Security() {
     <section id="security" className="py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-5">
         <SectionHeading title={t.security.title} subtitle={t.security.subtitle} />
+
+        {/* 试验性阶段提醒（从页面顶部移入此区块） */}
+        <div className="mx-auto mt-10 max-w-3xl rounded-xl border border-amber/25 bg-amber/[0.06] px-5 py-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
+            <p className="text-xs leading-relaxed text-amber/90 md:text-sm">
+              <span className="font-semibold">{t.notice.title}</span>
+              <span className="mx-2 text-amber/40" aria-hidden>
+                ·
+              </span>
+              {t.notice.body}
+            </p>
+          </div>
+        </div>
+
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {t.security.items.map((item) => {
             const Icon = icons[item.icon]

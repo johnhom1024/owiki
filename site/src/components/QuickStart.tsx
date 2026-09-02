@@ -4,6 +4,24 @@ import { useLang } from '../i18n/LangProvider'
 import { SectionHeading } from './Features'
 import { cn } from '../lib/utils'
 
+/** 插件设置页截图（quickstart 第 3 步用）：跟随站点语言 */
+function PluginScreenshot() {
+  const { lang } = useLang()
+  const zh = lang === 'zh'
+  return (
+    <figure className="overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-xl shadow-black/20">
+      <img
+        src={zh ? '/screenshots/plugin-settings-zh.jpg' : '/screenshots/plugin-settings-en.jpg'}
+        alt={zh ? 'OWiki Sync 插件设置页' : 'OWiki Sync plugin settings'}
+        width="2024"
+        height="1624"
+        loading="lazy"
+        className="block w-full"
+      />
+    </figure>
+  )
+}
+
 export function QuickStart() {
   const { t } = useLang()
 
@@ -25,7 +43,15 @@ export function QuickStart() {
                 <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">{step.desc}</p>
               </div>
 
-              {step.tabs ? <CodeTabs tabs={step.tabs} /> : <div className="hidden lg:block" />}
+              {step.tabs ? (
+                step.title === t.quickstart.steps[2].title ? (
+                  <PluginScreenshot />
+                ) : (
+                  <CodeTabs tabs={step.tabs} />
+                )
+              ) : (
+                <div className="hidden lg:block" />
+              )}
             </div>
           ))}
         </div>

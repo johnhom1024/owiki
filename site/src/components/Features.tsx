@@ -1,4 +1,4 @@
-import { Bot, GitMerge, Globe, Radio, ShieldCheck, Zap, type LucideIcon } from 'lucide-react'
+import { Bot, GitMerge, Globe, Radio, Share2, ShieldCheck, Zap, type LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
 import { SpotlightCard } from './SpotlightCard'
 
@@ -9,6 +9,7 @@ const icons: Record<string, LucideIcon> = {
   globe: Globe,
   shieldCheck: ShieldCheck,
   bot: Bot,
+  share2: Share2,
 }
 
 export function Features() {

@@ -5,7 +5,7 @@ export const REPO_URL = 'https://github.com/johnhom1024/owiki'
 const zh = {
   notice: {
     title: '试验性阶段提醒',
-    body: 'OWiki 目前处于早期试验性阶段，同步逻辑尚未经过大规模验证，不当配置或异常场景下可能导致笔记数据丢失或损坏。请在接入前为你的 Obsidian 仓库做好额外备份（建议保留一份独立于同步链路的完整拷贝）。因使用本项目造成的任何数据丢失，概不负责。',
+    body: 'OWiki 目前处于早期试验性阶段，同步逻辑尚未经过大规模验证，极端场景下可能导致笔记数据丢失或损坏。请在接入前为你的 Obsidian 仓库做好额外备份（建议保留一份独立于同步链路的完整拷贝）。因使用本项目造成的任何数据丢失，概不负责。',
   },
   nav: {
     features: '特性',
@@ -23,17 +23,17 @@ const zh = {
     title1: '你的 Obsidian 笔记库',
     title2: '实时同步 · 完全自持',
     subtitle:
-      'OWiki 是自部署的 Obsidian 同步服务 + wiki 功能，实时多端同步，行级三方合并避免冲突，并为 AI 助手敞开你的笔记库。',
+      '多端同步笔记，浏览器随处访问你的笔记库，把笔记库交给 AI 助手打理——数据只存在你自己的机器上。',
     ctaPrimary: '快速开始',
     ctaSecondary: '查看源码',
-    chips: ['单二进制 + SQLite', 'WebSocket 实时同步', '增量哈希对账', 'AI 开放 API'],
+    chips: ['数据只在你机器上', '多端实时同步', '冲突不丢内容', 'AI 开放接口'],
     demo: {
       title: '同步中',
       mac: 'Mac · Obsidian',
       nas: 'NAS · OWiki 服务端',
       phone: '手机 · Obsidian',
       saved: '保存 2026-08-plan.md',
-      reconcile: '哈希对账 · 仅传 1 个变更文件',
+      reconcile: '对账完成 · 只有 1 个文件有变化',
       broadcast: 'changed 广播 → 全端秒达',
       merged: '三方合并 · 无冲突',
       syncDone: '已同步',
@@ -45,33 +45,38 @@ const zh = {
     items: [
       {
         icon: 'zap',
-        title: '增量哈希对账',
-        desc: '每个文件取 SHA-256 内容哈希，清单对账找出差异——463 个文件的二次对账秒级完成，只传输真正变化的文件。',
+        title: '只传变化的文件',
+        desc: '没改过的笔记一个字节都不走。几百个文件的库重新对一遍只要几秒，设备间一致时零流量。',
       },
       {
         icon: 'radio',
         title: '多端实时同步',
-        desc: '编辑保存 2 秒防抖推送，其他设备通过 changed 广播即时拉取落盘；断线自动指数退避重连，暂存消息补发不丢。',
+        desc: '一台设备上保存，其他设备 2 秒内收到；编辑、重命名、删除都会跟着同步。断网也不怕，改动先存在本地，连上自动补传。',
       },
       {
         icon: 'gitMerge',
-        title: '智能冲突合并',
-        desc: '写入带 baseHash 乐观锁，能按行三方合并的静默合成；合不了就另存 xxx.conflict.md，本地文件永不被静默覆盖。',
+        title: '冲突不丢内容',
+        desc: '两台设备同时改一篇笔记，能自动合并的自动合并，合不了的另存 xxx.conflict.md 副本——本地文件永不被静默覆盖。',
       },
       {
         icon: 'globe',
         title: 'Web 管理端',
-        desc: '浏览器直接浏览、搜索、编辑笔记，保存带乐观锁并通过 SSE 实时刷新；设备授权、同步日志时间线一目了然。',
+        desc: '手机、公司电脑、任何浏览器打开网址，就能浏览、搜索、编辑笔记。设备授权、同步日志也都在网页上管理。',
       },
       {
         icon: 'shieldCheck',
         title: '设备级授权',
-        desc: '每台设备独立身份，新设备凭 PIN 授权接入，可随时解绑；vault 与设备绑定关系由服务端管理，iCloud 共享库也不串号。',
+        desc: '每台设备独立身份，新设备凭 PIN 授权接入，不想要了随时解绑。共用 iCloud 库也不会串号。',
       },
       {
         icon: 'bot',
         title: 'AI 开放接口',
-        desc: '/openapi/* REST 接口让 AI agent 读写笔记库，写入实时广播进 Obsidian——你的 AI 助手从此记得你记过的一切。',
+        desc: '给 AI 助手发一把钥匙，它就能读你的笔记、帮你写——它写下的内容秒级出现在 Obsidian 里。',
+      },
+      {
+        icon: 'share2',
+        title: '笔记分享',
+        desc: '任意笔记开个开关就有公开只读链接，发给朋友扫码即读；不想分享了关掉，链接立即失效。',
       },
     ],
   },
@@ -171,8 +176,18 @@ make run   # :8787，默认 token: dev-token-change-me`,
       },
       {
         title: '安装 Obsidian 插件',
-        desc: '从 GitHub Release 下载插件三件套放入 vault，启用后填服务器地址与令牌，首次对账自动拉全量。',
+        desc: '已上架 Obsidian 社区插件市场：设置 → 第三方插件 → 浏览，搜索 owiki-sync 安装，填服务器地址与令牌，首次连接自动拉全量。',
         tabs: [
+          {
+            name: '插件市场（推荐）',
+            lang: 'bash',
+            code: `# Obsidian → 设置 → 第三方插件
+#   ① 关闭安全模式（若未关）
+#   ② 社区插件 → 浏览 → 搜索 "owiki" → 安装 owiki-sync
+#   ③ 启用，填入服务器地址与同步令牌，完成
+#
+# 打不开社区市场时，用下方手动安装`,
+          },
           {
             name: '手动安装',
             lang: 'bash',
@@ -196,12 +211,21 @@ mv main.js manifest.json styles.css \\
     ],
     note: '生产环境请务必修改 OWIKI_TOKEN 与管理员密码，并置于反向代理（caddy / nginx）之后启用 TLS。',
   },
+  share: {
+    title: '把笔记分享给任何人',
+    subtitle: '公开只读链接 · 无需账号 · 随时关闭',
+    desc: '网页上打开一篇笔记，点「分享」开个开关，就有一条公开链接。朋友不用注册、不用装 Obsidian，点开就能读；二维码扫一下，手机上直接看。',
+    pointLink: '链接是固定的：关掉再开还是同一条，之前发出去的不作废',
+    pointQr: '自带二维码，扫码即读，转发到微信群不用打字',
+    pointControl: '不想分享了随时关，链接立即失效；库里的其他笔记依然只在你服务器上',
+    pointReadonly: '访客只能读这一篇：正文和附件都能看，但改不了，也看不到你的其他笔记',
+  },
   openapi: {
     title: '给 AI 助手一把你笔记库的钥匙',
     subtitle: '/openapi/* REST 接口 · X-API-Key 认证 · 写入实时广播进 Obsidian',
-    desc: '在 Web 端生成 API 密钥（SHA-256 存储，明文只显示一次），AI agent 就能新建、读取、更新、删除、搜索笔记——你在 Obsidian 里秒级看到它写下的内容。同步日志会记录每一条 API 写入。OWiki 还提供官方 agent skill 文档，教你的 AI 助手用这套 openapi 完成增删查改。',
+    desc: '在网页上生成一个 API 密钥，AI 助手就能读你的笔记库、帮你写笔记——它写下的内容秒级出现在 Obsidian 里，每条写入都有同步日志可查。',
     codeTitle: '让 AI 写一篇笔记',
-    skillBadge: '官方 Agent Skill：教会任何 AI 助手调用 openapi 增删查改笔记',
+    skillBadge: '官方 Agent Skill：让 AI 助手直接学会用这套接口',
     code: `KEY=owk_xxx   # Web 管理端「API 密钥」页生成
 
 # 列出 vault
@@ -213,10 +237,10 @@ curl -s -X POST \\
   -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \\
   -d '{"content": "# 由 AI 创建\\n\\n来自 agent 的第一条笔记。"}'`,
     points: [
-      '笔记新建 / 读取 / 更新 / 删除 / 搜索，全覆盖',
-      '官方 agent skill 文档（docs/openapi-skill.md），装进 AI 助手技能目录即学会增删查改',
-      '每条写入进入同步日志，来源标记为 openapi',
-      '密钥 SHA-256 存储，明文只显示一次，可随时吊销',
+      '新建 / 读取 / 更新 / 删除 / 搜索笔记，全覆盖',
+      '附带 agent skill 文档，放进 AI 助手的技能目录就能上手',
+      '每条 API 写入都进同步日志，来源标记为 openapi',
+      '密钥只存摘要、明文只显示一次，可随时吊销',
     ],
   },
   security: {
@@ -241,7 +265,7 @@ curl -s -X POST \\
       {
         icon: 'server',
         title: '边界清晰',
-        desc: 'MVP 未内置 TLS，建议置于 caddy/nginx 反代之后；除 /api/health 与登录接口外全部需要认证。',
+        desc: '未内置 TLS，建议置于 caddy/nginx 反代之后；除 /api/health 与登录接口外全部需要认证。',
       },
     ],
   },
@@ -282,7 +306,7 @@ export type Content = typeof zh
 const en: Content = {
   notice: {
     title: 'Experimental software',
-    body: 'OWiki is in an early experimental stage. The sync logic has not been validated at scale, and improper configuration or edge cases may cause note data loss or corruption. Back up your Obsidian vault before connecting (keep a full copy independent of the sync pipeline). We are not responsible for any data loss caused by using this project.',
+    body: 'OWiki is in an early experimental stage. The sync logic has not been validated at scale, and edge cases may cause note data loss or corruption. Back up your Obsidian vault before connecting (keep a full copy independent of the sync pipeline). We are not responsible for any data loss caused by using this project.',
   },
   nav: {
     features: 'Features',
@@ -300,17 +324,17 @@ const en: Content = {
     title1: 'Your Obsidian vault.',
     title2: 'Synced in real time. Self-hosted.',
     subtitle:
-      'OWiki is a self-hosted Obsidian sync service + wiki — realtime multi-device sync, line-level three-way merges to avoid conflicts, and an open door to your vault for AI assistants.',
+      'Sync notes across devices, reach your vault from any browser, hand your AI assistant the keys — your data stays on your own machine.',
     ctaPrimary: 'Get started',
     ctaSecondary: 'View source',
-    chips: ['Single binary + SQLite', 'Realtime WebSocket', 'Hash reconciliation', 'Open AI API'],
+    chips: ['Data stays on your machine', 'Realtime multi-device sync', 'Conflicts never lose content', 'Open AI API'],
     demo: {
       title: 'Syncing',
       mac: 'Mac · Obsidian',
       nas: 'NAS · OWiki server',
       phone: 'Phone · Obsidian',
       saved: 'Saved 2026-08-plan.md',
-      reconcile: 'Reconciled manifests · 1 file changed',
+      reconcile: 'Reconciled · only 1 file changed',
       broadcast: 'changed broadcast → all devices',
       merged: 'Three-way merge · no conflict',
       syncDone: 'In sync',
@@ -322,33 +346,38 @@ const en: Content = {
     items: [
       {
         icon: 'zap',
-        title: 'Incremental hash reconciliation',
-        desc: 'Every file gets a SHA-256 content hash; manifests are diffed server-side. Re-reconciling 463 files takes seconds — only what actually changed gets transferred.',
+        title: 'Only changed files move',
+        desc: 'Untouched notes never travel a byte. Re-checking a vault of several hundred files takes seconds; when devices match, traffic is zero.',
       },
       {
         icon: 'radio',
         title: 'Realtime multi-device sync',
-        desc: 'Saves are pushed after a 2s debounce; other devices pull instantly via changed broadcasts. Automatic exponential-backoff reconnect with queued message replay.',
+        desc: 'Save on one device and every other device gets it within 2 seconds — edits, renames and deletes follow along. Offline changes queue locally and deliver on reconnect.',
       },
       {
         icon: 'gitMerge',
-        title: 'Smart conflict merging',
-        desc: 'Writes carry a baseHash optimistic lock. Clean changes merge silently line-by-line; the rest are saved as xxx.conflict.md — your local file is never silently overwritten.',
+        title: 'Conflicts never lose content',
+        desc: 'When two devices edit the same note, mergeable changes merge automatically; the rest are saved as xxx.conflict.md copies — your local file is never silently overwritten.',
       },
       {
         icon: 'globe',
         title: 'Web console',
-        desc: 'Browse, search and edit notes in the browser with optimistic-lock saves and SSE live refresh. Device authorization and a sync-log timeline, all in one place.',
+        desc: 'Open a URL on your phone, work laptop, any browser — and read, search, edit your notes. Device authorization and sync logs live on the same web page.',
       },
       {
         icon: 'shieldCheck',
         title: 'Per-device authorization',
-        desc: 'Each device has its own identity, authorized via PIN and revocable anytime. Vault-device bindings live on the server — even iCloud-shared vaults stay isolated.',
+        desc: 'Every device has its own identity, joins via PIN, and can be unbound whenever you like. Even iCloud-shared vaults never mix up their devices.',
       },
       {
         icon: 'bot',
         title: 'Open API for AI',
-        desc: '/openapi/* REST endpoints let AI agents read and write your vault, broadcast live into Obsidian — your assistant finally remembers everything you noted.',
+        desc: 'Hand your AI assistant a key and it can read your notes and write for you — what it writes lands in Obsidian seconds later.',
+      },
+      {
+        icon: 'share2',
+        title: 'Note sharing',
+        desc: 'Flip a switch on any note for a public read-only link — send it to a friend, they scan and read. Turn it off when done and the link dies instantly.',
       },
     ],
   },
@@ -448,8 +477,18 @@ make run   # :8787, default token: dev-token-change-me`,
       },
       {
         title: 'Install the Obsidian plugin',
-        desc: 'Download the three plugin files from the GitHub release into your vault, enable it, enter the server URL and token — the first reconciliation pulls everything down.',
+        desc: 'Now on the Obsidian community plugin market: Settings → Community plugins → Browse, search owiki-sync and install, enter the server URL and token — the first reconciliation pulls everything down.',
         tabs: [
+          {
+            name: 'Plugin market (recommended)',
+            lang: 'bash',
+            code: `# Obsidian → Settings → Community plugins
+#   1. Turn off Restricted mode (if on)
+#   2. Community plugins → Browse → search "owiki" → install owiki-sync
+#   3. Enable it, enter server URL + sync token, done
+#
+# If the community market is unreachable, use Manual install below`,
+          },
           {
             name: 'Manual install',
             lang: 'bash',
@@ -473,12 +512,21 @@ mv main.js manifest.json styles.css \\
     ],
     note: 'In production, always change OWIKI_TOKEN and the admin password, and put OWiki behind a reverse proxy (caddy / nginx) for TLS.',
   },
+  share: {
+    title: 'Share any note with anyone',
+    subtitle: 'Public read-only links · no account needed · close anytime',
+    desc: 'Open a note on the web, flip the "Share" switch, and you have a public link. Friends need no account and no Obsidian — they just open it and read. The built-in QR code gets phones there in one scan.',
+    pointLink: 'The link is stable: toggle sharing off and on and it is still the same URL you already sent out',
+    pointQr: 'Built-in QR code — scan and read on a phone, no typing links into chats',
+    pointControl: 'Turn it off anytime and the link dies instantly; the rest of your vault stays on your server',
+    pointReadonly: 'Visitors read exactly this one note: body and attachments visible, nothing editable, no way to browse your other notes',
+  },
   openapi: {
     title: 'Hand your AI agent the key to your vault',
     subtitle: '/openapi/* REST · X-API-Key auth · writes broadcast live into Obsidian',
-    desc: 'Generate an API key in the web console (SHA-256 at rest, shown once in plaintext) and AI agents can create, read, update, delete and search notes — you watch their output land in Obsidian seconds later. Every API write lands in the sync log. OWiki also ships an official agent skill doc that teaches your AI assistant full CRUD over this openapi.',
+    desc: 'Generate an API key on the web console and your AI assistant can read your vault and write notes for you — what it writes lands in Obsidian seconds later, with every write visible in the sync log.',
     codeTitle: 'Let an AI write a note',
-    skillBadge: 'Official Agent Skill: teaches any AI assistant CRUD over your notes via openapi',
+    skillBadge: 'Official Agent Skill: get your AI assistant fluent with the API in one drop',
     code: `KEY=owk_xxx   # generated in the web console "API keys" page
 
 # List vaults
@@ -491,9 +539,9 @@ curl -s -X POST \\
   -d '{"content": "# Written by AI\\n\\nFirst note from an agent."}'`,
     points: [
       'Create / read / update / delete / search notes — full coverage',
-      'Official agent skill doc (docs/openapi-skill.md) — drop it into your assistant\u2019s skills dir and it knows CRUD',
+      'Ships an agent skill doc you can drop into your assistant’s skills folder',
       'Every write is recorded in the sync log, tagged source=openapi',
-      'Keys stored as SHA-256, plaintext shown once, revocable anytime',
+      'Keys stored as digests, plaintext shown once, revocable anytime',
     ],
   },
   security: {
@@ -518,7 +566,7 @@ curl -s -X POST \\
       {
         icon: 'server',
         title: 'Clear boundaries',
-        desc: 'No built-in TLS in the MVP — put it behind caddy/nginx. Everything except /api/health and the login endpoints requires auth.',
+        desc: 'No built-in TLS — put OWiki behind a caddy/nginx reverse proxy. Everything except /api/health and the login endpoint requires auth.',
       },
     ],
   },
