@@ -6,7 +6,7 @@ import { useLang } from '../i18n/LangProvider'
  */
 export function Screenshot() {
   const { lang } = useLang()
-  const src = lang === 'en' ? '/screenshots/home-en.jpg' : '/screenshots/home-zh.jpg'
+  const src = `${import.meta.env.BASE_URL}screenshots/${lang === 'en' ? 'home-en.jpg' : 'home-zh.jpg'}`
   const alt = lang === 'en' ? 'OWiki web console' : 'OWiki 管理端首页'
 
   return (

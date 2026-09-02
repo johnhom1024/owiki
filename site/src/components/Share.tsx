@@ -49,7 +49,7 @@ export function Share() {
               </span>
             </div>
             <img
-              src={zh ? '/screenshots/share-zh.jpg' : '/screenshots/share-en.jpg'}
+              src={`${import.meta.env.BASE_URL}screenshots/${zh ? 'share-zh.jpg' : 'share-en.jpg'}`}
               alt={zh ? 'OWiki 文章分享' : 'OWiki note sharing'}
               width="2004"
               height="890"

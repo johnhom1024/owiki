@@ -11,7 +11,7 @@ function PluginScreenshot() {
   return (
     <figure className="overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-xl shadow-black/20">
       <img
-        src={zh ? '/screenshots/plugin-settings-zh.jpg' : '/screenshots/plugin-settings-en.jpg'}
+        src={`${import.meta.env.BASE_URL}screenshots/${zh ? 'plugin-settings-zh.jpg' : 'plugin-settings-en.jpg'}`}
         alt={zh ? 'OWiki Sync 插件设置页' : 'OWiki Sync plugin settings'}
         width="2024"
         height="1624"
