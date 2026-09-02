@@ -149,29 +149,37 @@ func (r *VaultRepo) ClearAuth(ctx context.Context, id int64) error {
 		Where("id = ?", id).Update("last_seen_at", nil).Error
 }
 
-// EnsureDefault 确保存在默认 vault：没有则用 fallbackToken 创建，
-// 并把所有 vault_id 为 0 的旧笔记归入。返回默认 vault。
-func (r *VaultRepo) EnsureDefault(ctx context.Context, fallbackToken string, noteRepo *NoteRepo) (*model.Vault, error) {
+// MigrateOrphanNotes 仅在存在「vault_id = 0 的旧笔记」时建一个迁移 vault 把它们收进去。
+// 全新空库什么都不建，由用户在 Web 端自己新建 vault。
+func (r *VaultRepo) MigrateOrphanNotes(ctx context.Context, fallbackToken string) (*model.Vault, error) {
+	var orphans int64
+	if err := r.db.WithContext(ctx).Model(&model.Note{}).Where("vault_id = 0").Count(&orphans).Error; err != nil {
+		return nil, err
+	}
+	if orphans == 0 {
+		return nil, nil
+	}
+
 	var vs []model.Vault
 	if err := r.db.WithContext(ctx).Order("id ASC").Find(&vs).Error; err != nil {
 		return nil, err
 	}
+	var v *model.Vault
 	if len(vs) > 0 {
-		return &vs[0], nil
+		v = &vs[0]
+	} else {
+		token := fallbackToken
+		if token == "" {
+			token = NewToken()
+		}
+		v = &model.Vault{Name: "default", Note: "默认 vault（由旧版数据迁移而来）", Token: token}
+		if err := r.db.WithContext(ctx).Create(v).Error; err != nil {
+			return nil, err
+		}
 	}
-	token := fallbackToken
-	if token == "" {
-		token = NewToken()
-	}
-	v := &model.Vault{Name: "default", Note: "默认 vault（由旧版数据迁移而来）", Token: token}
-	if err := r.db.WithContext(ctx).Create(v).Error; err != nil {
-		return nil, err
-	}
-	// 旧笔记归入默认 vault
 	if err := r.db.WithContext(ctx).Model(&model.Note{}).
 		Where("vault_id = 0").Update("vault_id", v.ID).Error; err != nil {
 		return nil, err
 	}
-	_ = noteRepo // 保持签名稳定
 	return v, nil
 }

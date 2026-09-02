@@ -90,9 +90,10 @@ func main() {
 		log.Printf("WARNING: no admin user. Set OWIKI_ADMIN_USER/OWIKI_ADMIN_PASSWORD and restart to initialize login.")
 	}
 
-	// 旧库迁移：没有任何 vault 时用 OWIKI_TOKEN 建默认 vault，旧笔记归入
-	if _, err := vaultRepo.EnsureDefault(context.Background(), token, repo); err != nil {
-		log.Fatalf("ensure default vault: %v", err)
+	// 旧库迁移：只有存在 vault_id=0 的遗留笔记时才建 default vault 把它们收进去。
+	// 全新空库不再自动建 vault，由用户在 Web 端自己新建。
+	if _, err := vaultRepo.MigrateOrphanNotes(context.Background(), token); err != nil {
+		log.Fatalf("migrate orphan notes: %v", err)
 	}
 
 	h := hub.New()

@@ -25,7 +25,7 @@ OWiki 处于 `0.x` 早期阶段，只修复最新发布版本中的安全问题�
 
 ## 部署安全基线
 
-- 修改默认 `OWIKI_TOKEN` 与 `OWIKI_ADMIN_PASSWORD`
+- 修改默认 `OWIKI_ADMIN_PASSWORD`；各 vault 同步令牌在 Web 端生成，勿复用
 - 服务自身不提供 TLS，置于反向代理（caddy / nginx / traefik）之后
 - `/openapi/*` 密钥与 `/ws` 令牌权限独立，按需发放、及时吊销
 - 同步内容明文存于 SQLite，敏感库请考虑磁盘加密
