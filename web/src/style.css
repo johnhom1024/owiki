@@ -260,12 +260,16 @@
 }
 .markdown-body blockquote p { @apply my-1; }
 
-/* 行内代码：浅底圆角 */
+/* 行内代码：浅底圆角。prose 默认用 ::before/::after 包一层反引号，关掉。 */
 .markdown-body :not(pre) > code {
   @apply rounded-md px-[0.35em] py-[0.15em] text-[0.875em];
   background: color-mix(in oklab, var(--muted) 72%, transparent);
   color: hsl(340 55% 48%);
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+.markdown-body :not(pre) > code::before,
+.markdown-body :not(pre) > code::after {
+  content: none;
 }
 .dark .markdown-body :not(pre) > code {
   color: hsl(340 70% 72%);

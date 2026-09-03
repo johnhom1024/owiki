@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
 import { api, UnauthorizedError, type VaultMeta } from '@/lib/api.ts'
 import { AppShell } from '@/components/AppShell.tsx'
 import { HomePage } from '@/pages/HomePage.tsx'
@@ -33,14 +33,30 @@ export function useVaults(authed: boolean) {
   return { vaults, setVaults, refreshVaults: refresh }
 }
 
-/** authed: null=探测中 false=未登录 true=已登录 */
+/**
+ * 顶层走 data router：文章页才能用 useBlocker 拦住应用内跳转。
+ * 分享页单独一条路由，访客不进管理外壳、不探测登录。
+ * 管理端路由全部声明在树上，避免 path:'*' 把子路径切掉。
+ */
+const router = createBrowserRouter([
+  { path: '/share/:token', Component: SharedFilePage },
+  {
+    path: '/',
+    Component: AdminApp,
+    children: [
+      { index: true, Component: HomeRoute },
+      { path: 'apikeys', Component: ApiKeysRoute },
+      { path: 'security', Component: SecurityPage },
+      { path: 'vaults/:vid', Component: VaultRoute },
+      { path: 'vaults/:vid/settings', Component: VaultSettingsRoute },
+      { path: 'vaults/:vid/files/:id', Component: FileViewPage },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+])
+
 export function App() {
-  const location = useLocation()
-  // 公开分享页：不进管理外壳、不探测登录（访客也能看）
-  if (location.pathname.startsWith('/share/')) {
-    return <SharedFilePage />
-  }
-  return <AdminApp />
+  return <RouterProvider router={router} />
 }
 
 /** 管理端（需登录）：原有的探测 + 外壳 + 路由 */
@@ -114,37 +130,73 @@ function AdminApp() {
   }
 
   return (
-    <AppShell
-      vaults={vaults ?? []}
-      onRefresh={refreshVaults}
-      treeRefreshTick={treeRefreshTicks}
-      syncProgress={syncProgress}
-      onLogout={async () => {
-        try {
-          await api.logout()
-        } catch {
-          // 忽略登出失败
-        }
-        setAuthed(false)
+    <AdminCtx.Provider
+      value={{
+        vaults,
+        refreshVaults,
+        refreshTick,
+        logRefreshTicks,
+        syncProgress,
       }}
-    >      <Routes>
-        <Route path="/" element={<HomePage vaults={vaults} onRefresh={refreshVaults} />} />
-        <Route path="/apikeys" element={<ApiKeysPage vaults={vaults} />} />
-        <Route path="/security" element={<SecurityPage />} />
-        <Route path="/vaults/:vid" element={<VaultPage syncProgress={syncProgress} />} />
-        <Route
-          path="/vaults/:vid/settings"
-          element={
-            <VaultSettingsPage
-              refreshTick={refreshTick}
-              logRefreshTicks={logRefreshTicks}
-              onRefresh={refreshVaults}
-            />
+    >
+      <AppShell
+        vaults={vaults ?? []}
+        onRefresh={refreshVaults}
+        treeRefreshTick={treeRefreshTicks}
+        syncProgress={syncProgress}
+        onLogout={async () => {
+          try {
+            await api.logout()
+          } catch {
+            // 忽略登出失败
           }
-        />
-        <Route path="/vaults/:vid/files/:id" element={<FileViewPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AppShell>
+          setAuthed(false)
+        }}
+      >
+        <Outlet />
+      </AppShell>
+    </AdminCtx.Provider>
+  )
+}
+
+interface AdminCtxValue {
+  vaults: VaultMeta[] | null
+  refreshVaults: () => Promise<void>
+  refreshTick: number
+  logRefreshTicks: Record<number, number>
+  syncProgress: Record<number, { total: number; done: number }>
+}
+
+const AdminCtx = createContext<AdminCtxValue | null>(null)
+
+function useAdmin(): AdminCtxValue {
+  const ctx = useContext(AdminCtx)
+  if (!ctx) throw new Error('AdminCtx missing')
+  return ctx
+}
+
+function HomeRoute() {
+  const { vaults, refreshVaults } = useAdmin()
+  return <HomePage vaults={vaults} onRefresh={refreshVaults} />
+}
+
+function ApiKeysRoute() {
+  const { vaults } = useAdmin()
+  return <ApiKeysPage vaults={vaults} />
+}
+
+function VaultRoute() {
+  const { syncProgress } = useAdmin()
+  return <VaultPage syncProgress={syncProgress} />
+}
+
+function VaultSettingsRoute() {
+  const { refreshTick, logRefreshTicks, refreshVaults } = useAdmin()
+  return (
+    <VaultSettingsPage
+      refreshTick={refreshTick}
+      logRefreshTicks={logRefreshTicks}
+      onRefresh={refreshVaults}
+    />
   )
 }

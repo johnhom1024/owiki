@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -13,16 +14,7 @@ import { useLang } from '@/i18n/LangProvider.tsx'
  * 公开分享页：/share/:token（免登录）。
  * 只读渲染一篇文章；wikilink/嵌入按「不存在」降级（访客没有 vault 导航上下文），
  * 图片附件经 /api/share/:token/attachments/* 放行。
- *
- * 注意：本组件在 App.tsx 里按路径前缀直接条件渲染，不在 <Route> 上下文内，
- * 不能用 useParams——token 从 window.location.pathname 解析。
  */
-
-/** 从当前 URL 解析 /share/<token> 里的 token */
-function readTokenFromLocation(): string {
-  const m = location.pathname.match(/^\/share\/([A-Za-z0-9]+)/)
-  return m ? m[1] : ''
-}
 
 /** 分享页专用的预处理：不做 wikilink 解析（访客无跳转权限），只保留外观类转换 */
 function preprocessShared(source: string, token: string) {
@@ -46,7 +38,8 @@ function preprocessShared(source: string, token: string) {
 
 export function SharedFilePage() {
   const { t } = useLang()
-  const [token] = useState(readTokenFromLocation)
+  const { token: tokenParam } = useParams()
+  const token = tokenParam ?? ''
   const [file, setFile] = useState<SharedFileDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
 

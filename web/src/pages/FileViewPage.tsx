@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type UIEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { BookOpen, ChevronLeft, Columns2, Pencil } from 'lucide-react'
 import { api, ConflictError, type FileDetail, type FileMeta } from '@/lib/api.ts'
 import { NoteReadingView } from '@/components/NoteReadingView.tsx'
@@ -7,6 +7,14 @@ import { ShareButton } from '@/components/ShareButton.tsx'
 import { useLang } from '@/i18n/LangProvider.tsx'
 import { cn } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog.tsx'
 
 const MarkdownEditor = lazy(() =>
   import('@/components/MarkdownEditor.tsx').then((m) => ({ default: m.MarkdownEditor })),
@@ -256,6 +264,7 @@ export function FileViewPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // 关标签 / 刷新 / 关掉窗口：浏览器原生提示（文案由浏览器决定，不可自定义）
   useEffect(() => {
     if (!dirty) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -265,6 +274,12 @@ export function FileViewPage() {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirty])
+
+  // 应用内跳转（返回 vault、侧栏点别的文章、浏览器后退）：自定义确认弹窗
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && currentLocation.pathname !== nextLocation.pathname,
+  )
 
   /** 分屏滚动同步：按百分比对齐，避免一侧滚动时无限循环 */
   const syncScroll = (src: HTMLElement, dst: HTMLElement) => {
@@ -422,6 +437,38 @@ export function FileViewPage() {
       {!file && !error && (
         <p className="text-muted-foreground flex-1 py-20 text-center">{t.common.loading}</p>
       )}
+
+      <Dialog
+        open={blocker.state === 'blocked'}
+        onOpenChange={(open) => {
+          if (!open && blocker.state === 'blocked') blocker.reset()
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t.fileView.unsavedTitle}</DialogTitle>
+            <DialogDescription>{t.fileView.unsavedDesc}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (blocker.state === 'blocked') blocker.reset()
+              }}
+            >
+              {t.fileView.stay}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (blocker.state === 'blocked') blocker.proceed()
+              }}
+            >
+              {t.fileView.leaveAnyway}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {file && (
         <div
