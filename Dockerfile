@@ -7,7 +7,10 @@ WORKDIR /build/web
 
 # 先复制依赖清单，利用 Docker 层缓存
 COPY web/package.json web/pnpm-lock.yaml ./
-RUN npm install -g pnpm@11 && pnpm install --frozen-lockfile
+# pnpm 版本与 web/package.json 的 packageManager 锁死同版：
+# pnpm 11.x 各小版对 overrides 的解析规则有差异，浮动版本会触发
+# ERR_PNPM_LOCKFILE_CONFIG_MISMATCH（frozen install 校验失败）。
+RUN npm install -g pnpm@11.15.0 && pnpm install --frozen-lockfile
 
 # 复制前端源码并构建（产物输出到 web/dist）
 COPY web/ ./
