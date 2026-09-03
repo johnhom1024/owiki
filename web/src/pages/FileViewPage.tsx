@@ -132,6 +132,26 @@ export function FileViewPage() {
     }
   }
 
+  // 保存后的同步回执：插件 fetch 落盘后服务端推 note.synced，提示升级为“已同步”，
+  // 几秒后自动收起。插件离线时停在“正在同步”，语义准确（确实还没同步）。
+  useEffect(() => {
+    const waiting = notice === t.fileView.saved || notice === t.fileView.merged
+    if (!waiting) return
+    let timer: number | undefined
+    const onSynced = (e: Event) => {
+      const detail = (e as CustomEvent<{ vaultId: number; path: string }>).detail
+      if (detail && file && detail.vaultId === file.vaultId && detail.path === file.path) {
+        setNotice(t.fileView.syncedToClients)
+        timer = window.setTimeout(() => setNotice(null), 4000)
+      }
+    }
+    window.addEventListener('owiki-note-synced', onSynced)
+    return () => {
+      window.removeEventListener('owiki-note-synced', onSynced)
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [notice, file, t])
+
   // 分屏预览防抖：避免每个按键都跑一遍 Obsidian 预处理 + react-markdown
   useEffect(() => {
     if (view !== 'split') {

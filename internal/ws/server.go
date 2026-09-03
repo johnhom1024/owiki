@@ -461,6 +461,14 @@ func (s *Server) handleFetch(c *hub.Client, data []byte) {
 		Content: content, Mtime: note.Mtime,
 	})
 	s.advanceProgress(c.VaultID, m.Path)
+	// 某客户端拉取成功 = 另一端的改动已送达：通知 Web 端该笔记已同步完成
+	if s.eventHub != nil {
+		s.eventHub.Publish(events.Event{
+			Type:    "note.synced",
+			VaultID: c.VaultID,
+			Path:    note.Path,
+		})
+	}
 }
 
 func (s *Server) handleRename(c *hub.Client, data []byte) {

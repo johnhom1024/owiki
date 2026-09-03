@@ -15,6 +15,8 @@ type Event struct {
 	// 同步进度（vault.progress 事件用）
 	Total int `json:"total,omitempty"`
 	Done  int `json:"done,omitempty"`
+	// 文件路径（note.synced 事件用）
+	Path string `json:"path,omitempty"`
 }
 
 const subBuffer = 16

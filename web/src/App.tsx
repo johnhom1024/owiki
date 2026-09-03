@@ -99,6 +99,9 @@ function AdminApp() {
     (vaultId) => {
       setLogRefreshTicks((prev) => ({ ...prev, [vaultId]: (prev[vaultId] ?? 0) + 1 }))
     },
+    (ev) => {
+      window.dispatchEvent(new CustomEvent('owiki-note-synced', { detail: ev }))
+    },
   )
 
   if (authed === null) {

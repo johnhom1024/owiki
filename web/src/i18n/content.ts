@@ -286,7 +286,8 @@ const zh = {
   fileView: {
     backToVault: '返回 vault',
     edit: '编辑',
-    saved: '已保存，正在同步到 Obsidian',
+    saved: '已保存，正在同步到 Obsidian…',
+    syncedToClients: '已同步到 Obsidian',
     merged: '已自动合并远端修改并保存',
     conflictTitle: '远程已被修改，无法自动合并（同一处两边都改了）。',
     overwriteRemote: '用我的覆盖远程',
@@ -617,7 +618,8 @@ const en: typeof zh = {
   fileView: {
     backToVault: 'Back to vault',
     edit: 'Edit',
-    saved: 'Saved — syncing to Obsidian',
+    saved: 'Saved — syncing to Obsidian…',
+    syncedToClients: 'Synced to Obsidian',
     merged: 'Remote changes merged and saved',
     conflictTitle: 'The remote copy changed and cannot be auto-merged (both sides edited the same spot).',
     overwriteRemote: 'Overwrite remote with mine',

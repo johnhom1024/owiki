@@ -15,6 +15,11 @@ export interface SyncProgressEvent {
  * 注意：刷新时尽量复用现有 vaults 数组的元素（id/name/clients/files/size 保留），
  * 只更新授权相关字段（authorized/lastSeenAt），避免侧边栏闪烁。
  */
+export interface NoteSyncedEvent {
+  vaultId: number
+  path: string
+}
+
 export function useVaultEvents(
   vaults: VaultMeta[] | null,
   setVaults: (v: VaultMeta[]) => void,
@@ -22,6 +27,7 @@ export function useVaultEvents(
   onProgress?: (ev: SyncProgressEvent) => void,
   onSyncDone?: (vaultId: number) => void,
   onLog?: (vaultId: number) => void,
+  onNoteSynced?: (ev: NoteSyncedEvent) => void,
 ): void {
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -31,6 +37,8 @@ export function useVaultEvents(
   onSyncDoneRef.current = onSyncDone
   const onLogRef = useRef(onLog)
   onLogRef.current = onLog
+  const onNoteSyncedRef = useRef(onNoteSynced)
+  onNoteSyncedRef.current = onNoteSynced
 
   const vaultsRef = useRef(vaults)
   vaultsRef.current = vaults
@@ -45,6 +53,7 @@ export function useVaultEvents(
           vaultId: number
           total?: number
           done?: number
+          path?: string
         }
         if (ev.type === 'vault.authorized') {
           // 单台设备认证成功（含首次+每次重连）-> 列表 authorized=true
@@ -79,6 +88,11 @@ export function useVaultEvents(
         } else if (ev.type === 'vault.log') {
           // 新同步日志产生：交给上层通知日志组件刷新（不重查 vault 列表）
           onLogRef.current?.(ev.vaultId)
+        } else if (ev.type === 'note.synced') {
+          // 某客户端 fetch 完成 = 这篇笔记的改动已送达（Web 保存→插件拉取的回执）
+          if (typeof ev.path === 'string') {
+            onNoteSyncedRef.current?.({ vaultId: ev.vaultId, path: ev.path })
+          }
         } else {
           // 其他（unbound 等）：触发设置页重查即可
           onChangeRef.current()
