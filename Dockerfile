@@ -5,11 +5,11 @@
 FROM node:22-alpine AS web-builder
 WORKDIR /build/web
 
-# 先复制依赖清单，利用 Docker 层缓存
-COPY web/package.json web/pnpm-lock.yaml ./
-# pnpm 版本与 web/package.json 的 packageManager 锁死同版：
-# pnpm 11.x 各小版对 overrides 的解析规则有差异，浮动版本会触发
-# ERR_PNPM_LOCKFILE_CONFIG_MISMATCH（frozen install 校验失败）。
+# 先复制依赖清单（含 workspace 声明与 overrides），利用 Docker 层缓存
+# pnpm-workspace.yaml 的 overrides 必须在场，否则 frozen install 校验
+# ERR_PNPM_LOCKFILE_CONFIG_MISMATCH（lockfile 记录了 overrides 快照）。
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+# pnpm 版本与 web/package.json 的 packageManager 锁死同版，防小版解析漂移
 RUN npm install -g pnpm@11.15.0 && pnpm install --frozen-lockfile
 
 # 复制前端源码并构建（产物输出到 web/dist）
