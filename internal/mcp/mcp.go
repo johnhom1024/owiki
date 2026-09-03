@@ -4,22 +4,19 @@
 // 设计原则：
 //   - 挂载在 /mcp，与 /openapi 共用同一套 owk_ API key 认证（X-API-Key /
 //     Authorization: Bearer / ?key= 查询参数三种取法）
-//   - 工具直调 repo / service 层（与 openapi handler 同层），不走 HTTP 自调用
+//   - 工具实现在 internal/tools 注册表；本包只做 MCP 协议适配
 //   - readOnly key 只挂只读工具：auth 按 key 的 ReadOnly 位选 server 变体
-//   - 写路径复用 openapi 包的共享 helper（Save + sync_log 留痕 + WS 广播）
 //   - sync_log 来源记 "mcp"，Web 端日志时间线可看到 AI 操作痕迹
 package mcp
 
 import (
 	"context"
-	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"owiki/internal/hub"
-	"owiki/internal/model"
 	"owiki/internal/repository"
+	"owiki/internal/tools"
 
 	"github.com/gin-gonic/gin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -27,18 +24,11 @@ import (
 
 // Server MCP server 装配器：按 key 权限生成对应的 *mcp.Server 变体。
 type Server struct {
-	repo      *repository.NoteRepo
-	vaultRepo *repository.VaultRepo
-	keys      *repository.ApiKeyRepo
-	attach    *repository.AttachStore
-	devices   *repository.DeviceRepo
-	hub       *hub.Hub
-	syncLog   *repository.SyncLogRepo
-	share     *repository.ShareRepo
-	version   string
+	keys *repository.ApiKeyRepo
+	host *tools.Host
 
 	// 两种工具集的 server 变体（懒初始化）：full 挂全部工具，
-	// readOnly 只挂只读工具。共享同一个 deps。
+	// readOnly 只挂只读工具。共享同一个 host。
 	full     *mcp.Server
 	readOnly *mcp.Server
 }
@@ -48,8 +38,11 @@ func New(repo *repository.NoteRepo, vaultRepo *repository.VaultRepo, keys *repos
 	attach *repository.AttachStore, devices *repository.DeviceRepo, h *hub.Hub,
 	syncLog *repository.SyncLogRepo, share *repository.ShareRepo, version string) *Server {
 	return &Server{
-		repo: repo, vaultRepo: vaultRepo, keys: keys, attach: attach,
-		devices: devices, hub: h, syncLog: syncLog, share: share, version: version,
+		keys: keys,
+		host: &tools.Host{
+			Repo: repo, Vaults: vaultRepo, Keys: keys, Attach: attach,
+			Devices: devices, Hub: h, SyncLog: syncLog, Share: share, Version: version,
+		},
 	}
 }
 
@@ -130,12 +123,8 @@ func (s *Server) fullServer() *mcp.Server {
 	if s.full != nil {
 		return s.full
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: "owiki", Version: s.version}, nil)
-	s.registerReadTools(srv)
-	s.registerWriteTools(srv)
-	s.registerGraphTools(srv)
-	s.registerSystemReadTools(srv)
-	s.registerSystemWriteTools(srv)
+	srv := mcp.NewServer(&mcp.Implementation{Name: "owiki", Version: s.host.Version}, nil)
+	s.mountTools(srv, s.host.Registry().All())
 	s.full = srv
 	return srv
 }
@@ -145,72 +134,8 @@ func (s *Server) readOnlyServer() *mcp.Server {
 	if s.readOnly != nil {
 		return s.readOnly
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: "owiki", Version: s.version}, nil)
-	s.registerReadTools(srv)
-	s.registerGraphTools(srv)
-	s.registerSystemReadTools(srv)
+	srv := mcp.NewServer(&mcp.Implementation{Name: "owiki", Version: s.host.Version}, nil)
+	s.mountTools(srv, s.host.Registry().ReadOnly())
 	s.readOnly = srv
 	return srv
 }
-
-// resolveVault 把 vault 参数（id 或 name）解析成 vault id，并校验 key 作用域。
-// vault 为空时：key 限定了 vault → 用该 vault；否则若服务器只有一个 vault 则默认它；
-// 多个 vault 时强制要求指定。
-func (s *Server) resolveVault(k *model.ApiKey, vault string) (int64, *model.Vault, error) {
-	if k.VaultScope != 0 && vault == "" {
-		v, err := s.vaultRepo.GetByID(context.Background(), k.VaultScope)
-		if err != nil {
-			return 0, nil, err
-		}
-		return v.ID, v, nil
-	}
-	if vault == "" {
-		vaults, err := s.vaultRepo.List(context.Background())
-		if err != nil {
-			return 0, nil, err
-		}
-		// 过滤出 key 允许的 vault
-		var allowed []model.Vault
-		for _, v := range vaults {
-			if k.VaultScope == 0 || k.VaultScope == v.ID {
-				allowed = append(allowed, v)
-			}
-		}
-		if len(allowed) == 1 {
-			return allowed[0].ID, &allowed[0], nil
-		}
-		if len(allowed) == 0 {
-			return 0, nil, errVaultNotFound
-		}
-		return 0, nil, errors.New("vault required: pass vault id or name (multiple vaults exist)")
-	}
-	// 先按 id 试
-	if id, err := strconv.ParseInt(vault, 10, 64); err == nil {
-		v, err := s.vaultRepo.GetByID(context.Background(), id)
-		if err == nil {
-			if k.VaultScope != 0 && k.VaultScope != v.ID {
-				return 0, nil, errScope
-			}
-			return v.ID, v, nil
-		}
-	}
-	// 按名称查
-	vaults, err := s.vaultRepo.List(context.Background())
-	if err != nil {
-		return 0, nil, err
-	}
-	for _, v := range vaults {
-		if v.Name == vault {
-			if k.VaultScope != 0 && k.VaultScope != v.ID {
-				return 0, nil, errScope
-			}
-			return v.ID, &v, nil
-		}
-	}
-	return 0, nil, errVaultNotFound
-}
-
-var (
-	errScope       = errors.New("vault not in key scope")
-	errVaultNotFound = errors.New("vault not found")
-)

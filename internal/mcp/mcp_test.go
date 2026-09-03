@@ -85,7 +85,7 @@ func connect(t *testing.T, endpoint, key string) *mcp.ClientSession {
 	tr := &mcp.StreamableClientTransport{
 		Endpoint: endpoint,
 		HTTPClient: &http.Client{Transport: headerRoundTripper{
- base:   http.DefaultTransport,
+			base:   http.DefaultTransport,
 			header: http.Header{"X-API-Key": []string{key}},
 		}},
 	}
