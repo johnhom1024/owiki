@@ -56,6 +56,12 @@ docker run -d --name owiki \
   johnhom1024/owiki:latest
 ```
 
+国内网络拉不动 Docker Hub 时，用 CNB 制品库镜像源（内容一致，无需代理）：
+
+```bash
+docker pull docker.cnb.cool/johnhom1024/owiki:latest
+```
+
 <details>
 <summary>更多启动方式（docker-compose / 二进制）</summary>
 

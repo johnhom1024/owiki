@@ -30,7 +30,16 @@ OWiki 采用「版本号 tag 永久钉死 + latest 只跟正式版」的分发�
 
 ## 发版流程
 
-> 流水线在 `.github/workflows/release.yml`，push `v*` tag 触发，多架构构建推 Docker Hub。
+> 流水线在 `.github/workflows/release.yml`，push `v*` tag 触发，构建 linux/amd64 单架构（NAS x86 部署，无需 arm64/QEMU），一次构建同时推 Docker Hub 与 CNB 制品库（国内源，两边 digest 一致）。
+
+**两个镜像源：**
+
+```
+docker.io/johnhom1024/owiki              ← Docker Hub（海外/代理网络）
+docker.cnb.cool/johnhom1024/owiki        ← CNB 制品库（国内直连，无需代理）
+```
+
+CNB 源挂在其代码仓库 cnb.cool/johnhom1024/owiki（Public）下，匿名可拉取。
 
 **预发布（远程测试，不更新 latest）：**
 
@@ -54,6 +63,7 @@ git push origin v0.0.3
 ```
 docker.io/johnhom1024/owiki:0.0.3      ← 新版本，永久保留
 docker.io/johnhom1024/owiki:latest     ← 滚动指向 0.0.3
+docker.cnb.cool/johnhom1024/owiki:0.0.3 / :latest   ← 同步镜像
 （0.0.2、0.0.3-beta.1 等不受影响）
 ```
 

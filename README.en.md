@@ -56,6 +56,12 @@ docker run -d --name owiki \
   johnhom1024/owiki:latest
 ```
 
+If Docker Hub is slow or unreachable from your network, pull the same image from the CNB registry (identical content, reachable in mainland China without a proxy):
+
+```bash
+docker pull docker.cnb.cool/johnhom1024/owiki:latest
+```
+
 <details>
 <summary>More options (docker-compose / binary)</summary>
 

@@ -1,9 +1,14 @@
 name: Release Docker image
 
 # 打 v* tag 即发版（scripts/tag.sh 只在本地打 tag，推远程后走这里）：
-#   正式    v0.0.3          → johnhom1024/owiki:0.0.3 + :latest，GitHub Release
-#   预发布  v0.0.3-beta.1   → johnhom1024/owiki:0.0.3-beta.1（钉死，不更新 latest），GitHub pre-release
+#   正式    v0.0.3          → docker.io/johnhom1024/owiki:0.0.3 + :latest
+#                            + docker.cnb.cool/johnhom1024/owiki:0.0.3 + :latest（国内源）
+#   预发布  v0.0.3-beta.1   → 同上但只推版本 tag（不推 :latest），GitHub Release 标 pre-release
+#
+# 仅构建 linux/amd64（NAS x86 部署，无需 arm64），原生构建不依赖 QEMU。
+# 一次构建同时推 Docker Hub 与 CNB 制品库（buildx 多 tag 双 registry），两边 digest 一致。
 # 版本号经 --build-arg VERSION 注入二进制，/api/health.version 透出。
+
 on:
   push:
     tags:
@@ -11,16 +16,16 @@ on:
 
 env:
   IMAGE: johnhom1024/owiki
+  CNB_IMAGE: docker.cnb.cool/johnhom1024/owiki
+
+permissions:
+  contents: write # 发 GitHub Release 说明本次镜像内容
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # 发 GitHub Release 说明本次镜像内容
     steps:
       - uses: actions/checkout@v7
-
-      - uses: docker/setup-qemu-action@v4
 
       - uses: docker/setup-buildx-action@v4
 
@@ -30,7 +35,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Compute image tag
+      - name: Login to CNB registry
+        uses: docker/login-action@v4
+        with:
+          registry: docker.cnb.cool
+          username: cnb
+          password: ${{ secrets.CNB_REGISTRY_TOKEN }}
+
+      - name: Compute version
         id: ver
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -41,17 +53,18 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and push (prerelease, pinned only)
+      - name: Build and push (prerelease, version tag only)
         if: steps.ver.outputs.prerelease == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
           tags: |
-            johnhom1024/owiki:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.CNB_IMAGE }}:${{ steps.ver.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -60,15 +73,24 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
           tags: |
-            johnhom1024/owiki:${{ steps.ver.outputs.version }}
-            johnhom1024/owiki:latest
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.CNB_IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.CNB_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify both registries
+        run: |
+          set -eu
+          docker buildx imagetools inspect "${IMAGE}:${{ steps.ver.outputs.version }}" >/dev/null
+          docker buildx imagetools inspect "${CNB_IMAGE}:${{ steps.ver.outputs.version }}" >/dev/null
+          echo "✓ image live on Docker Hub and CNB"
 
       - name: Create GitHub Release
         env:
@@ -86,8 +108,12 @@ jobs:
             "${extra[@]}" \
             --notes "Docker image \`johnhom1024/owiki:${version}\` published.
 
+          国内镜像源（无需代理直连）：\`docker.cnb.cool/johnhom1024/owiki:${version}\`
+
           \`\`\`bash
           docker pull johnhom1024/owiki:${version}
+          # 国内网络用：
+          docker pull docker.cnb.cool/johnhom1024/owiki:${version}
           curl -s http://localhost:8787/api/health   # version 应为 ${version}
           \`\`\`" \
             --draft=false
