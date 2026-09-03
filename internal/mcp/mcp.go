@@ -72,6 +72,10 @@ func (s *Server) Register(r *gin.Engine) {
 
 	g := r.Group("/mcp")
 	g.Use(s.authMiddleware())
+	// 两个路由都指向同一 handler："/mcp" 本体 + "/mcp/*any" 通配。
+	// 只注册通配时 gin 会把 "/mcp" 307 重定向到 "/mcp/"，MCP 客户端的
+	// POST 不会自动跟随重定向，直连 /mcp 第一跳就挂。
+	g.Any("", gin.WrapH(handler))
 	g.Any("/*any", gin.WrapH(handler))
 }
 

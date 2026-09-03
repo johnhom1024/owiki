@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"owiki/internal/hub"
@@ -222,6 +223,34 @@ func TestMCPQueryKeyFallback(t *testing.T) {
 	t.Cleanup(func() { _ = sess.Close() })
 	if _, err := sess.ListTools(context.Background(), nil); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestMCPEndpointNoRedirect 直连 /mcp（不带尾斜杠）必须直接 200 而不是
+// 307 重定向到 /mcp/。Go 的 http.Client 会自动跟随 307（方法与 body 保
+// 留），所以走 SDK 客户端测不出来；这里用原始 HTTP + 禁止跟随重定向断言。
+func TestMCPEndpointNoRedirect(t *testing.T) {
+	endpoint, key, _, _ := setup(t)
+	endpoint = strings.TrimSuffix(endpoint, "/")
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.1"}}}`
+	req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	req.Header.Set("X-API-Key", key)
+	client := &http.Client{
+		// 拿到首个响应就返回，不跟随 Location
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("POST /mcp: status = %d (want 200, no redirect)", res.StatusCode)
 	}
 }
 
