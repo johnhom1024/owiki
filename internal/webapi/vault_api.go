@@ -14,6 +14,7 @@ import (
 	"owiki/internal/hub"
 	"owiki/internal/proto"
 	"owiki/internal/repository"
+	"owiki/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -417,6 +418,57 @@ func RegisterVaultRoutes(api *gin.RouterGroup, vaultRepo *repository.VaultRepo, 
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"data": notes, "total": len(notes)})
+	})
+
+	// Web 端新建笔记：路径不存在才创建，广播到已连接的 Obsidian。
+	vg.POST("/files", func(c *gin.Context) {
+		vid := c.GetInt64("vid")
+		var body struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		p, err := repository.NormalizeNotePath(body.Path)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid path"})
+			return
+		}
+		if _, err := repo.GetByPath(c.Request.Context(), vid, p); err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "note already exists"})
+			return
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		content := body.Content
+		if content == "" {
+			content = "# " + repository.NoteTitleFromPath(p) + "\n"
+		}
+		res, err := service.Save(c.Request.Context(), repo, service.SaveInput{
+			VaultID: vid,
+			Path:    p,
+			Content: content,
+			Mtime:   time.Now().Unix(),
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if h != nil {
+			msg, _ := json.Marshal(proto.Changed{Type: "changed", Path: res.Note.Path, Hash: res.Note.ContentHash})
+			h.BroadcastVault(vid, msg, nil)
+		}
+		if syncLog != nil {
+			syncLog.Record(c.Request.Context(), vid, repository.ActionFileCreate, res.Note.Path, "Web 端新建", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)))
+		}
+		if eventHub != nil {
+			eventHub.Publish(events.Event{Type: "vault.log", VaultID: vid})
+			eventHub.Publish(events.Event{Type: "vault.sync_done", VaultID: vid})
+		}
+		c.JSON(http.StatusCreated, gin.H{"data": res.Note})
 	})
 
 	vg.GET("/files/:id", func(c *gin.Context) {

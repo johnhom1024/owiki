@@ -249,6 +249,9 @@ export const api = {
   // ---------- vault 作用域的文件 ----------
   listVaultFiles: (vid: number) =>
     get<{ data: FileMeta[]; total: number }>(`/api/vaults/${vid}/files`),
+  /** Web 端在指定 vault 新建笔记；路径已存在返回 409 */
+  createVaultFile: (vid: number, body: { path: string; content?: string }) =>
+    send<{ data: FileDetail }>(`/api/vaults/${vid}/files`, 'POST', body),
   getVaultStats: (vid: number) => get<Stats>(`/api/vaults/${vid}/stats`),
   /** 按路径解析文件元数据（首页「最近动态」跳转详情用） */
   resolveVaultFile: (vid: number, path: string) =>
@@ -256,7 +259,8 @@ export const api = {
 
   // ---------- 文件读写（跨 vault 的旧接口，按 id） ----------
   listFiles: () => get<{ data: FileMeta[]; total: number }>('/api/files'),
-  getFile: (id: number) => get<FileDetail>(`/api/files/${id}`),  saveFile: async (
+  getFile: (id: number) => get<FileDetail>(`/api/files/${id}`),
+  saveFile: async (
     id: number,
     body: { content: string; baseHash: string; force?: boolean },
   ) => {

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { FileText, Settings2 } from 'lucide-react'
+import { FilePlus, FileText, Settings2 } from 'lucide-react'
 import { api, type FileMeta, type VaultSummary } from '@/lib/api.ts'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Card } from '@/components/ui/card.tsx'
+import { CreateNoteDialog } from '@/components/CreateNoteDialog.tsx'
 import { cn } from '@/lib/utils.ts'
 
 function formatSize(bytes: number): string {
@@ -29,6 +30,7 @@ export function VaultPage({
   const [vault, setVault] = useState<VaultSummary | null>(null)
   const [files, setFiles] = useState<FileMeta[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!Number.isFinite(vaultId)) return
@@ -85,14 +87,18 @@ export function VaultPage({
             <p className="text-muted-foreground mt-0.5 text-sm">{vault.data.note}</p>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          onClick={() => navigate(`/vaults/${vaultId}/settings`)}
-        >
-          <Settings2 /> {t.vaultPage.settings}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <FilePlus /> {t.vaultPage.newNote}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/vaults/${vaultId}/settings`)}
+          >
+            <Settings2 /> {t.vaultPage.settings}
+          </Button>
+        </div>
       </div>
 
       {/* 同步进度条 */}
@@ -144,7 +150,12 @@ export function VaultPage({
       {vault === null && !error ? (
         <p className="text-muted-foreground py-12 text-center text-sm">{t.common.loading}</p>
       ) : recentFiles.length === 0 ? (
-        <p className="text-muted-foreground py-12 text-center text-sm">{t.vaultPage.recentEmpty}</p>
+        <div className="text-muted-foreground rounded-xl border border-dashed py-12 text-center text-sm">
+          <p className="mb-4">{t.vaultPage.recentEmpty}</p>
+          <Button onClick={() => setCreating(true)}>
+            <FilePlus /> {t.vaultPage.newNote}
+          </Button>
+        </div>
       ) : (
         <Card className="overflow-hidden py-0">
           <div className="divide-y">
@@ -165,6 +176,13 @@ export function VaultPage({
           </div>
         </Card>
       )}
+
+      <CreateNoteDialog
+        vaultId={vaultId}
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={() => void refresh()}
+      />
     </div>
   )
 }

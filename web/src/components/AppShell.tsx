@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen,
+  FilePlus,
   FileText,
   FolderPlus,
   Home,
@@ -16,6 +17,7 @@ import {
 import { api, type FileMeta, type VaultMeta } from '@/lib/api.ts'
 import { cn } from '@/lib/utils.ts'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
+import { CreateNoteDialog } from '@/components/CreateNoteDialog.tsx'
 import { CreateVaultDialog } from '@/components/CreateVaultDialog.tsx'
 import { FileTree } from '@/components/FileTree.tsx'
 import { Logo } from '@/components/Logo.tsx'
@@ -73,6 +75,7 @@ function SidebarBody({
   const { t } = useLang()
 
   const [creating, setCreating] = useState(false)
+  const [creatingNote, setCreatingNote] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const vaultId = useMemo(() => {
@@ -83,6 +86,7 @@ function SidebarBody({
 
   // ---- 当前 vault 的文件树数据 ----
   const [files, setFiles] = useState<FileMeta[]>([])
+  const [localTreeTick, setLocalTreeTick] = useState(0)
   const tick = vaultId !== undefined ? treeRefreshTick?.[vaultId] : undefined
   useEffect(() => {
     if (!inVault) return
@@ -98,7 +102,7 @@ function SidebarBody({
     return () => {
       cancelled = true
     }
-  }, [inVault, vaultId, tick])
+  }, [inVault, vaultId, tick, localTreeTick])
 
   // 当前打开的文件路径（用于树里高亮）
   const currentPath = useMemo(() => {
@@ -205,9 +209,18 @@ function SidebarBody({
         {/* 当前 vault 的文件树 */}
         {inVault && (
           <div className="mt-4">
-            <div className="text-muted-foreground mb-1 flex items-center gap-1.5 px-2 text-[11px] font-semibold tracking-wider uppercase">
-              <FileText className="size-3" />
-              {t.nav.files}
+            <div className="mb-1 flex items-center justify-between px-2">
+              <span className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase">
+                <FileText className="size-3" />
+                {t.nav.files}
+              </span>
+              <button
+                onClick={() => setCreatingNote(true)}
+                title={t.nav.newNote}
+                className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded p-1"
+              >
+                <FilePlus className="size-3.5" />
+              </button>
             </div>
             {files.length > 0 ? (
               <FileTree files={files} currentPath={currentPath} onOpenFile={(f) => go(`/vaults/${vaultId}/files/${f.id}`)} />
@@ -285,6 +298,14 @@ function SidebarBody({
       </div>
 
       <CreateVaultDialog open={creating} onOpenChange={setCreating} onCreated={onRefresh} />
+      {inVault && (
+        <CreateNoteDialog
+          vaultId={vaultId}
+          open={creatingNote}
+          onOpenChange={setCreatingNote}
+          onCreated={() => setLocalTreeTick((n) => n + 1)}
+        />
+      )}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )

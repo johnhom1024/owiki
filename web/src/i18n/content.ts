@@ -48,7 +48,8 @@ const zh = {
     syncingVault: '同步中 · {name}',
     clientsOnline: '{n} 个连接在线',
     noVaultsYet: '还没有 vault，点右上 + 创建',
-    noFilesYet: '还没有文件——去设置页连接 Obsidian 同步',
+    noFilesYet: '还没有笔记。点 + 新建，或去设置页连接 Obsidian 同步。',
+    newNote: '新建笔记',
   },
 
   home: {
@@ -121,7 +122,8 @@ const zh = {
     statSize: '总大小',
     statClients: '在线连接',
     recent: '最近更新',
-    recentEmpty: '还没有同步任何文件——去设置页连接 Obsidian',
+    recentEmpty: '还没有笔记。点右上「新建笔记」，或去设置页连接 Obsidian。',
+    newNote: '新建笔记',
     progress: '{done} / {total}（{pct}%）',
     invalidId: '无效的 vault id',
   },
@@ -195,6 +197,17 @@ const zh = {
     namePlaceholder: '如：个人笔记、工作库',
     noteLabel: '备注（可选）',
     notePlaceholder: '简单描述一下这个库',
+  },
+
+  createNote: {
+    title: '新建笔记',
+    desc: '在当前 vault 里创建一篇 Markdown 笔记，已连接的 Obsidian 会自动同步过来。',
+    pathLabel: '路径',
+    pathPlaceholder: '如：日记/今日 或 新笔记.md',
+    pathHint: '可用 / 表示文件夹。没写扩展名时自动补 .md。',
+    pathRequired: '路径不能为空',
+    exists: '这个路径已经有笔记了',
+    invalidPath: '路径不合法（不能用图片等附件扩展名，也不能含 <>:"|?*）',
   },
 
   apiKeys: {
@@ -299,6 +312,10 @@ const zh = {
     viewSource: '源码视图',
     viewSplit: '分屏预览',
     draftRestored: '已恢复上次未保存的草稿',
+    unsavedTitle: '有未保存的修改',
+    unsavedDesc: '当前修改还没保存。确定要离开这篇文章吗？',
+    leaveAnyway: '仍然离开',
+    stay: '继续编辑',
   },
 
   share: {
@@ -380,7 +397,8 @@ const en: typeof zh = {
     syncingVault: 'Syncing · {name}',
     clientsOnline: '{n} connections online',
     noVaultsYet: 'No vaults yet — click + above to create one',
-    noFilesYet: 'No files yet — connect Obsidian in settings',
+    noFilesYet: 'No notes yet. Click + to create one, or connect Obsidian in settings.',
+    newNote: 'New note',
   },
 
   home: {
@@ -451,7 +469,8 @@ const en: typeof zh = {
     statSize: 'Total size',
     statClients: 'Connections',
     recent: 'Recently updated',
-    recentEmpty: 'Nothing synced yet — connect Obsidian in settings',
+    recentEmpty: 'No notes yet. Click "New note" above, or connect Obsidian in settings.',
+    newNote: 'New note',
     progress: '{done} / {total} ({pct}%)',
     invalidId: 'Invalid vault id',
   },
@@ -526,6 +545,17 @@ const en: typeof zh = {
     namePlaceholder: 'e.g. Personal, Work',
     noteLabel: 'Note (optional)',
     notePlaceholder: 'A short description',
+  },
+
+  createNote: {
+    title: 'New note',
+    desc: 'Create a Markdown note in this vault. Connected Obsidian clients will pick it up.',
+    pathLabel: 'Path',
+    pathPlaceholder: 'e.g. journal/today or untitled.md',
+    pathHint: 'Use / for folders. .md is added if you omit an extension.',
+    pathRequired: 'Path is required',
+    exists: 'A note already exists at this path',
+    invalidPath: 'Invalid path (no image/attachment extensions, no <>:"|?*)',
   },
 
   apiKeys: {
@@ -631,6 +661,10 @@ const en: typeof zh = {
     viewSource: 'Source view',
     viewSplit: 'Split preview',
     draftRestored: 'Restored unsaved draft from last time',
+    unsavedTitle: 'Unsaved changes',
+    unsavedDesc: 'This note has unsaved edits. Leave anyway?',
+    leaveAnyway: 'Leave',
+    stay: 'Keep editing',
   },
 
   share: {
