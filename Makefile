@@ -24,9 +24,20 @@ WEB_DIST := web/dist/index.html
 
 .PHONY: run build start test-client web web-dev web-build ensure-web ensure-go clean help \
         plugin-build plugin-deploy plugin-reload plugin-clean \
-        tag-list tag-beta tag-release
+        tag-list tag-beta tag-release dev
 
-run: ensure-go ensure-web            ## 开发运行（默认 :8787；缺 web/dist 时自动构建前端）
+dev: ensure-go ensure-web            ## 一键启动前后端（后端 :8787 + 前端 :5174，Ctrl-C 一起退出）
+	@echo ""
+	@echo "→ 同时启动："
+	@echo "   后端  http://localhost:8787  (Go)"
+	@echo "   前端  http://localhost:5174  (Vite HMR，开发请用这个)"
+	@echo ""
+	@trap 'kill 0' EXIT; \
+	go run -ldflags '$(LDFLAGS)' . & \
+	(cd web && pnpm dev) & \
+	wait
+
+run: ensure-go ensure-web            ## 只启动后端（默认 :8787；缺 web/dist 时自动构建前端）
 	go run -ldflags '$(LDFLAGS)' .
 
 build: ensure-go ensure-web          ## 编译二进制（含嵌入 Web 前端）。VERSION 可覆盖
