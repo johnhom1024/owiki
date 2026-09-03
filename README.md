@@ -77,7 +77,7 @@ services:
 ```
 
 ```bash
-# 从源码构建
+# 从源码构建（需 Go + Node/pnpm；首次 make run 会自动构建前端）
 git clone https://github.com/johnhom1024/owiki
 cd owiki
 make run   # :8787

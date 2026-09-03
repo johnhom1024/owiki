@@ -77,7 +77,7 @@ services:
 ```
 
 ```bash
-# Build from source
+# Build from source (needs Go + Node/pnpm; first `make run` builds the web UI)
 git clone https://github.com/johnhom1024/owiki
 cd owiki
 make run   # :8787

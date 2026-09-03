@@ -19,19 +19,63 @@ PLUGIN_ID   := owiki-sync
 # 设为 0 可在非 Mac/CI 环境跳过 Obsidian CLI 重载
 PLUGIN_RELOAD ?= 1
 
-.PHONY: run build start test-client web web-dev clean help \
+# Go 通过 //go:embed web/dist/* 把前端嵌进二进制；产物 gitignore，clone 后默认没有。
+WEB_DIST := web/dist/index.html
+
+.PHONY: run build start test-client web web-dev web-build ensure-web ensure-go clean help \
         plugin-build plugin-deploy plugin-reload plugin-clean \
         tag-list tag-beta tag-release
 
-run:            ## 开发运行（默认 :8787）
+run: ensure-go ensure-web            ## 开发运行（默认 :8787；缺 web/dist 时自动构建前端）
 	go run -ldflags '$(LDFLAGS)' .
 
-build:          ## 编译二进制（含嵌入 Web 前端，需先 make web）。VERSION 可覆盖
+build: ensure-go ensure-web          ## 编译二进制（含嵌入 Web 前端）。VERSION 可覆盖
 	go build -ldflags '$(LDFLAGS)' -o $(BINARY) .
 
-web:            ## 构建 Web 前端并嵌入（编译二进制前执行）
-	cd web && pnpm install && pnpm build
-	@make build
+ensure-go:
+	@command -v go >/dev/null 2>&1 || { \
+		echo ""; \
+		echo "❌ 从源码启动需要 Go（建议 1.22+）"; \
+		echo "   Need Go to build the server."; \
+		echo "   安装: https://go.dev/dl/"; \
+		echo ""; \
+		exit 1; \
+	}
+
+# 内部目标：缺产物才构建，避免每次 make run 都重打前端。
+ensure-web:
+	@if [ ! -f "$(WEB_DIST)" ]; then \
+		echo "→ web/dist 不存在，先构建 Web 前端（Go embed 需要这份产物；首次会花一点时间）"; \
+		$(MAKE) web-build; \
+	fi
+
+web-build:          ## 强制重建 Web 前端到 web/dist
+	@command -v pnpm >/dev/null 2>&1 || { \
+		echo ""; \
+		echo "❌ 从源码启动需要 pnpm（构建 Web 前端，随后由 Go embed 进二进制）"; \
+		echo "   Need pnpm to build the web UI before go:embed."; \
+		echo "   安装:  npm install -g pnpm  |  brew install pnpm  |  corepack enable"; \
+		echo "   https://pnpm.io/installation"; \
+		echo ""; \
+		exit 1; \
+	}
+	@command -v node >/dev/null 2>&1 || { \
+		echo ""; \
+		echo "❌ 从源码启动需要 Node.js（Web 前端构建）"; \
+		echo "   Need Node.js to build the web UI."; \
+		echo "   安装: https://nodejs.org/"; \
+		echo ""; \
+		exit 1; \
+	}
+	@echo "→ 安装 / 校验 Web 前端依赖"
+	cd web && pnpm install
+	@echo "→ 构建 Web 前端 → web/dist"
+	cd web && pnpm build
+	@test -f "$(WEB_DIST)" || { echo "❌ 前端构建失败：没有生成 $(WEB_DIST)"; exit 1; }
+	@echo "✅ 前端已就绪: $(WEB_DIST)"
+
+web: web-build          ## 强制重建前端并编译二进制
+	$(MAKE) build
 
 web-dev:        ## Web 前端开发模式（:5174，代理到 :8787，改代码即时生效）
 	cd web && pnpm dev
