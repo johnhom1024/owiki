@@ -100,16 +100,18 @@ make run   # :8787
 
 ### 3. 安装 Obsidian 插件
 
-从 [GitHub Releases](https://github.com/johnhom1024/owiki-sync/releases) 下载 `main.js`、`manifest.json`、`styles.css` 三件套，放入 vault 的插件目录后启用，填入服务器地址与同步令牌：
+在 Obsidian 里打开「设置 → 第三方插件 → 社区插件市场」，搜索 **OWiki Sync**（[市场页面](https://community.obsidian.md/plugins/owiki-sync)）安装并启用，然后填入服务器地址与同步令牌。
+
+<details>
+<summary>市场里搜不到，或想手动安装？</summary>
+
+**手动安装**：从 [GitHub Releases](https://github.com/johnhom1024/owiki-sync/releases) 下载 `main.js`、`manifest.json`、`styles.css` 三件套，放入插件目录后启用：
 
 ```
 <你的库>/.obsidian/plugins/owiki-sync/
 ```
 
-<details>
-<summary>BRAT 安装（官方市场上架前）</summary>
-
-安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件，在其设置里 Add Beta plugin 填入 `johnhom1024/owiki-sync`，即可安装并随 GitHub Release 自动更新。
+**BRAT**：安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件，在其设置里 Add Beta plugin 填入 `johnhom1024/owiki-sync`，可随 GitHub Release 自动更新。
 
 </details>
 

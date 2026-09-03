@@ -100,16 +100,18 @@ Open `http://localhost:8787` in your browser, sign in, and create a vault in the
 
 ### 3. Install the Obsidian plugin
 
-Download `main.js`, `manifest.json` and `styles.css` from [GitHub Releases](https://github.com/johnhom1024/owiki-sync/releases) into your vault's plugin folder, enable it, and enter your server address and sync token:
+Open **Settings → Community plugins → Browse** in Obsidian, search for **OWiki Sync** ([marketplace page](https://community.obsidian.md/plugins/owiki-sync)), install and enable it, then enter your server address and sync token.
+
+<details>
+<summary>Can't find it in the market, or prefer a manual install?</summary>
+
+**Manual**: download `main.js`, `manifest.json` and `styles.css` from [GitHub Releases](https://github.com/johnhom1024/owiki-sync/releases) into your vault's plugin folder and enable it:
 
 ```
 <your-vault>/.obsidian/plugins/owiki-sync/
 ```
 
-<details>
-<summary>BRAT install (before the community listing)</summary>
-
-Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, add `johnhom1024/owiki-sync` as a beta plugin in its settings, and you'll get the plugin — plus automatic updates with every GitHub release — before the official listing goes live.
+**BRAT**: install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin and add `johnhom1024/owiki-sync` as a beta plugin in its settings — you'll get automatic updates with every GitHub release.
 
 </details>
 
