@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { BookOpen, Code, ExternalLink, Globe, Info, Monitor, Moon, Sun } from 'lucide-react'
+import { ArrowUpCircle, BookOpen, Code, ExternalLink, Globe, Info, Monitor, Moon, Sun } from 'lucide-react'
 import { api } from '@/lib/api.ts'
 import { cn } from '@/lib/utils.ts'
 import { useLang } from '@/i18n/LangProvider.tsx'
@@ -7,6 +7,7 @@ import type { Lang } from '@/i18n/content.ts'
 import { useTheme, type Theme } from '@/hooks/useTheme.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Separator } from '@/components/ui/separator.tsx'
+import { checkForUpdates, type UpdateCheckResult } from '@/lib/updates.ts'
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,7 @@ export function SettingsDialog({
   const { t, lang, setLang } = useLang()
   const { theme, setTheme } = useTheme()
   const [version, setVersion] = useState<string | null>(null)
+  const [update, setUpdate] = useState<UpdateCheckResult['update']>(null)
   const fetched = useRef(false)
 
   // 打开时拉一次服务端版本（/api/health 公开端点）。成功后缓存，失败下次打开重试。
@@ -83,10 +85,12 @@ export function SettingsDialog({
     let cancelled = false
     api
       .health()
-      .then((h) => {
+      .then(async (h) => {
         if (cancelled) return
         setVersion(h.version ?? '')
         fetched.current = true
+        // 有版本号才做更新检测；dev / 失败 / 网络不通均静默
+        if (h.version) setUpdate((await checkForUpdates(h.version))?.update ?? null)
       })
       .catch(() => {
         if (!cancelled) setVersion('')
@@ -155,6 +159,19 @@ export function SettingsDialog({
                           ? version
                           : `v${version}`}
                   </Badge>
+                  {update && (
+                    <a
+                      href={update.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={update.prerelease ? t.settings.updatePreTooltip : t.settings.updateStableTooltip}
+                      className="text-primary hover:text-primary/80 inline-flex items-center gap-1 rounded-md text-xs font-medium"
+                    >
+                      <ArrowUpCircle className="size-3.5" />
+                      v{update.version}
+                      <span className="text-primary/70">{t.settings.updateAvailable}</span>
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
