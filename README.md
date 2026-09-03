@@ -119,10 +119,19 @@ make run   # :8787
 | `OWIKI_ADDR` | `:8787` | 监听地址 |
 | `OWIKI_DB` | `owiki.db` | SQLite 数据库路径 |
 | `OWIKI_ATTACH_DIR` | `<DB 同目录>/attachments` | 附件存储目录 |
+| `OWIKI_MCP` | （空=开） | 设为 `off` 关闭内嵌 MCP server（`/mcp`） |
 
-## 🔌 AI 开放接口
+## 🔌 AI 接入
 
-`/openapi/*` 是给 AI 助手和外部脚本的 REST API：新建、读取、更新、删除、搜索笔记，写入实时广播进 Obsidian。认证用 API 密钥（Web 端生成，SHA-256 存储）。
+三套接入面共用同一把 API 密钥（Web 端「API 密钥」页生成，SHA-256 存储；可限定 vault、可设只读）：
+
+| 接入 | 面向 | 说明 |
+| --- | --- | --- |
+| REST `/openapi/*` | 脚本 / 底层集成 | 新建、读取、更新、删除、搜索笔记，写入实时广播进 Obsidian |
+| MCP `/mcp` | 任何 MCP 客户端 | 工具 schema 自描述，免读文档；含笔记读写、wikilink/tag 图结构、同步日志 |
+| Skill | DSH / Hermes 等 | 见 [docs/openapi-skill.md](docs/openapi-skill.md) |
+
+### REST
 
 ```bash
 KEY=owk_xxx  # Web 管理端「API 密钥」页生成
@@ -133,12 +142,33 @@ curl -s -X POST "http://localhost:8787/openapi/vaults/1/notes/AI/新文章.md" \
   -d '{"content": "# 由 AI 创建\n\n内容..."}'
 ```
 
-完整文档与 Agent Skill 说明：[docs/openapi-skill.md](docs/openapi-skill.md)
+### MCP
+
+```jsonc
+{
+  "mcpServers": {
+    "owiki": {
+      "url": "http://localhost:8787/mcp",
+      "headers": { "X-API-Key": "owk_xxx" }
+    }
+  }
+}
+```
+
+```bash
+# Claude Code
+claude mcp add --transport http owiki http://localhost:8787/mcp \
+  --header "X-API-Key: owk_xxx"
+```
+
+部分客户端不支持自定义 header，可改用查询参数：`http://localhost:8787/mcp?key=owk_xxx`。
+
+完整 REST 文档与 Agent Skill 说明：[docs/openapi-skill.md](docs/openapi-skill.md)
 
 ## 📖 文档
 
 - [官网](https://johnhom1024.github.io/owiki/) —— 功能总览与同步原理
-- [AI 接口文档](docs/openapi-skill.md) —— OpenAPI 端点与 agent skill
+- [AI 接口文档](docs/openapi-skill.md) —— OpenAPI 端点、MCP `/mcp` 与 agent skill
 - [版本策略](docs/versioning.md) —— 镜像 tag 与发版流程
 
 ## 🤝 参与贡献

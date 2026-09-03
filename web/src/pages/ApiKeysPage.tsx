@@ -24,6 +24,7 @@ export function ApiKeysPage({ vaults }: { vaults: VaultMeta[] | null }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [scope, setScope] = useState('0')
+  const [readOnly, setReadOnly] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // 新生成的明文 key（只展示一次）
@@ -49,9 +50,10 @@ export function ApiKeysPage({ vaults }: { vaults: VaultMeta[] | null }) {
     setBusy(true)
     setError(null)
     try {
-      const res = await api.createApiKey({ name: name.trim(), vaultScope: Number(scope) })
+      const res = await api.createApiKey({ name: name.trim(), vaultScope: Number(scope), readOnly })
       setCreating(false)
       setName('')
+      setReadOnly(false)
       setFreshKey(res.apiKey)
       await refresh()
     } catch (e) {
@@ -119,6 +121,7 @@ export function ApiKeysPage({ vaults }: { vaults: VaultMeta[] | null }) {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{k.name}</span>
                     <Badge variant="secondary">{scopeLabel(k.vaultScope)}</Badge>
+                    {k.readOnly && <Badge variant="outline">{t.apiKeys.readOnlyBadge}</Badge>}
                   </div>
                   <div className="text-muted-foreground mt-0.5 font-mono text-xs">
                     {k.keyPrefix}…
@@ -170,6 +173,18 @@ export function ApiKeysPage({ vaults }: { vaults: VaultMeta[] | null }) {
                 ))}
               </select>
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={readOnly}
+                onChange={(e) => setReadOnly(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{t.apiKeys.readOnlyLabel}</span>
+                <span className="text-muted-foreground ml-1">{t.apiKeys.readOnlyHint}</span>
+              </span>
+            </label>
             {error && <p className="text-destructive text-sm">{error}</p>}
           </div>
           <DialogFooter>

@@ -200,7 +200,7 @@ const zh = {
 
   apiKeys: {
     title: 'API 密钥',
-    desc: '给 AI agent / 外部脚本调用开放接口（/openapi/*）用的密钥',
+    desc: '给 AI agent / 外部脚本调用开放接口（/openapi/*）和 MCP（/mcp）用的密钥',
     create: '新建密钥',
     createdNotice: '密钥已创建——明文只显示这一次，请立即复制保存：',
     copyAndClose: '复制并关闭',
@@ -209,10 +209,13 @@ const zh = {
     lastUsed: '最近使用 {t}',
     deleteConfirm: '确定删除密钥「{name}」？使用它的 AI 工具会立即失效。',
     dialogTitle: '新建 API 密钥',
-    dialogDesc: '密钥明文只在创建后显示一次。AI 工具通过请求头 X-API-Key 或 Authorization: Bearer 携带。',
+    dialogDesc: '密钥明文只在创建后显示一次。AI 工具通过请求头 X-API-Key 或 Authorization: Bearer 携带；MCP 客户端也可走 /mcp。',
     nameLabel: '名称',
     namePlaceholder: '如：claude-agent、n8n-workflow',
     scopeLabel: '可访问范围',
+    readOnlyLabel: '只读',
+    readOnlyHint: '只读密钥不能创建、修改或删除笔记（MCP 侧不挂写工具）',
+    readOnlyBadge: '只读',
   },
 
   security: {
@@ -508,7 +511,7 @@ const en: typeof zh = {
 
   apiKeys: {
     title: 'API keys',
-    desc: 'Keys for AI agents / scripts calling the open API (/openapi/*)',
+    desc: 'Keys for AI agents / scripts calling the open API (/openapi/*) and MCP (/mcp)',
     create: 'New key',
     createdNotice: 'Key created — shown only once, copy it now:',
     copyAndClose: 'Copy and close',
@@ -518,10 +521,13 @@ const en: typeof zh = {
     deleteConfirm: 'Delete key "{name}"? AI tools using it will stop working immediately.',
     dialogTitle: 'New API key',
     dialogDesc:
-      'The plaintext key is shown only once after creation. AI tools send it via the X-API-Key header or Authorization: Bearer.',
+      'The plaintext key is shown only once after creation. AI tools send it via the X-API-Key header or Authorization: Bearer. MCP clients connect to /mcp.',
     nameLabel: 'Name',
     namePlaceholder: 'e.g. claude-agent, n8n-workflow',
     scopeLabel: 'Scope',
+    readOnlyLabel: 'Read-only',
+    readOnlyHint: 'A read-only key cannot create, modify, or delete notes (MCP hides write tools)',
+    readOnlyBadge: 'read-only',
   },
 
   security: {

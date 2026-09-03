@@ -43,9 +43,9 @@ func HashApiKey(plaintext string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Create 落库（name 备注用途，vaultScope 限定可用 vault，0=全部）
-func (r *ApiKeyRepo) Create(ctx context.Context, name, hash, prefix string, vaultScope int64) (*model.ApiKey, error) {
-	k := &model.ApiKey{Name: name, KeyHash: hash, KeyPrefix: prefix, VaultScope: vaultScope}
+// Create 落库（name 备注用途，vaultScope 限定可用 vault，0=全部；readOnly=true 则只能调只读工具）
+func (r *ApiKeyRepo) Create(ctx context.Context, name, hash, prefix string, vaultScope int64, readOnly bool) (*model.ApiKey, error) {
+	k := &model.ApiKey{Name: name, KeyHash: hash, KeyPrefix: prefix, VaultScope: vaultScope, ReadOnly: readOnly}
 	if err := r.db.WithContext(ctx).Create(k).Error; err != nil {
 		return nil, err
 	}

@@ -169,6 +169,7 @@ export interface ApiKeyMeta {
   name: string
   keyPrefix: string
   vaultScope: number
+  readOnly: boolean
   createdAt: string
   lastUsedAt: string | null
 }
@@ -201,7 +202,7 @@ export const api = {
 
   // ---------- API 密钥（开放接口） ----------
   listApiKeys: () => get<{ data: ApiKeyMeta[] }>('/api/apikeys'),
-  createApiKey: (body: { name: string; vaultScope?: number }) =>
+  createApiKey: (body: { name: string; vaultScope?: number; readOnly?: boolean }) =>
     send<{ data: ApiKeyMeta; apiKey: string }>('/api/apikeys', 'POST', body),
   deleteApiKey: (id: number) => send<{ ok: boolean }>(`/api/apikeys/${id}`, 'DELETE'),
 

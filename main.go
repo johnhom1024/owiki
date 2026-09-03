@@ -11,6 +11,7 @@ import (
 
 	"owiki/internal/events"
 	"owiki/internal/hub"
+	owikimcp "owiki/internal/mcp"
 	"owiki/internal/openapi"
 	"owiki/internal/repository"
 	"owiki/internal/webapi"
@@ -121,6 +122,10 @@ func main() {
 	webapi.Register(apiGroup, repo, h, syncLogRepo)
 	webapi.RegisterVaultRoutes(apiGroup, vaultRepo, repo, deviceRepo, h, eventHub, attachStore, syncLogRepo, shareRepo)
 	openapi.Register(r, repo, vaultRepo, apiKeyRepo, attachStore, h, apiGroup, syncLogRepo, shareRepo)
+	// MCP：与 /openapi 共用同一套 API key；OWIKI_MCP=off 可关
+	if os.Getenv("OWIKI_MCP") != "off" {
+		owikimcp.New(repo, vaultRepo, apiKeyRepo, attachStore, deviceRepo, h, syncLogRepo, shareRepo, version).Register(r)
+	}
 	// 分享：管理端走 apiGroup（需登录），公开端直接挂 r（免登录）
 	webapi.RegisterShareRoutes(apiGroup, r, repo, shareRepo, attachStore)
 

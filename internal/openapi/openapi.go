@@ -8,8 +8,6 @@
 package openapi
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -56,13 +54,14 @@ func Register(r *gin.Engine, repo *repository.NoteRepo, vaultRepo *repository.Va
 			var body struct {
 				Name       string `json:"name"`
 				VaultScope int64  `json:"vaultScope"`
+				ReadOnly   bool   `json:"readOnly"`
 			}
 			if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.Name) == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "name required"})
 				return
 			}
 			plaintext, hash, prefix := repository.GenerateApiKey()
-			k, err := apiKeyRepo.Create(c.Request.Context(), strings.TrimSpace(body.Name), hash, prefix, body.VaultScope)
+			k, err := apiKeyRepo.Create(c.Request.Context(), strings.TrimSpace(body.Name), hash, prefix, body.VaultScope, body.ReadOnly)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -236,10 +235,7 @@ func (oa *openAPI) upsertNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	res, err := service.Save(context.Background(), oa.repo, service.SaveInput{
-		VaultID: vid, Path: path, Content: body.Content, Mtime: body.Mtime,
-		BaseHash: body.BaseHash, Force: body.Force,
-	})
+	res, err := WriteNote(c.Request.Context(), oa.repo, oa.syncLog, oa.hub, vid, path, body.Content, body.BaseHash, body.Force, repository.SourceOpenAPI, "开放 API")
 	if err != nil {
 		var ce *service.ConflictError
 		if errors.As(err, &ce) {
@@ -253,28 +249,6 @@ func (oa *openAPI) upsertNote(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": res.Note, "merged": res.Merged})
-	// 开放 API 写入留痕
-	if oa.syncLog != nil {
-		action := repository.ActionFileUpdate
-		switch {
-		case res.Merged:
-			action = repository.ActionFileMerge
-		case res.Created:
-			action = repository.ActionFileCreate
-		}
-		oa.syncLog.Record(c.Request.Context(), vid, action, path, "开放 API", repository.SourceOpenAPI, "", "API Key", int64(len(res.Note.Content)))
-	}
-	// 广播给 Obsidian 插件（在线设备立即拉取新内容）
-	oa.broadcast(vid, "changed", path, res.Note.ContentHash)
-}
-
-// broadcast 向 vault 内所有 WS 客户端广播变更通知
-func (oa *openAPI) broadcast(vid int64, typ, path, hash string) {
-	if oa.hub == nil {
-		return
-	}
-	msg, _ := json.Marshal(map[string]string{"type": typ, "path": path, "hash": hash})
-	oa.hub.BroadcastVault(vid, msg, nil)
 }
 
 func (oa *openAPI) renameNote(c *gin.Context) {
@@ -290,17 +264,10 @@ func (oa *openAPI) renameNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "to required"})
 		return
 	}
-	if err := oa.repo.Rename(c.Request.Context(), vid, path, body.To); err != nil {
+	if err := RenameNote(c.Request.Context(), oa.repo, oa.attach, oa.syncLog, oa.hub, vid, path, body.To, repository.SourceOpenAPI, "开放 API"); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if repository.IsAttachment(body.To) {
-		_ = oa.attach.Rename(vid, path, body.To)
-	}
-	if oa.syncLog != nil {
-		oa.syncLog.Record(c.Request.Context(), vid, repository.ActionFileRename, path+" → "+body.To, "开放 API", repository.SourceOpenAPI, "", "API Key", 0)
-	}
-	oa.broadcast(vid, "renamed", path, "")
 	c.JSON(http.StatusOK, gin.H{"ok": true, "from": path, "to": body.To})
 }
 
@@ -310,22 +277,10 @@ func (oa *openAPI) deleteNote(c *gin.Context) {
 		return
 	}
 	path := cleanPath(c)
-	// 先查出 note id：删除后要连带清分享记录
-	note, _ := oa.repo.GetByPath(c.Request.Context(), vid, path)
-	if err := oa.repo.DeleteByPath(c.Request.Context(), vid, path); err != nil && !errors.Is(err, repository.ErrNotFound) {
+	if err := DeleteNote(c.Request.Context(), oa.repo, oa.attach, oa.share, oa.syncLog, oa.hub, vid, path, 0, repository.SourceOpenAPI, "开放 API"); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if note != nil && oa.share != nil {
-		_ = oa.share.DeleteByNoteID(c.Request.Context(), note.ID)
-	}
-	if repository.IsAttachment(path) {
-		_ = oa.attach.Delete(vid, path)
-	}
-	if oa.syncLog != nil {
-		oa.syncLog.Record(c.Request.Context(), vid, repository.ActionFileDelete, path, "开放 API", repository.SourceOpenAPI, "", "API Key", 0)
-	}
-	oa.broadcast(vid, "deleted", path, "")
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 

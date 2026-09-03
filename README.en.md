@@ -119,10 +119,19 @@ The first connection reconciles automatically: remote-only files come down, loca
 | `OWIKI_ADDR` | `:8787` | Listen address |
 | `OWIKI_DB` | `owiki.db` | SQLite database path |
 | `OWIKI_ATTACH_DIR` | `<DB dir>/attachments` | Attachment storage directory |
+| `OWIKI_MCP` | (empty = on) | Set to `off` to disable the embedded MCP server (`/mcp`) |
 
-## 🔌 Open AI API
+## 🔌 AI access
 
-`/openapi/*` is a REST API for AI assistants and external scripts: create, read, update, delete and search notes — writes broadcast live into Obsidian. Auth with API keys (generated in the web console, stored as SHA-256).
+Three surfaces share one API key (generated in the web console "API keys" page, stored as SHA-256; can be scoped to a vault and marked read-only):
+
+| Surface | For | What it does |
+| --- | --- | --- |
+| REST `/openapi/*` | Scripts / low-level integrations | Create, read, update, delete and search notes — writes broadcast live into Obsidian |
+| MCP `/mcp` | Any MCP client | Self-describing tools; notes CRUD, wikilink/tag graph, sync logs |
+| Skill | DSH / Hermes etc. | See [docs/openapi-skill.md](docs/openapi-skill.md) |
+
+### REST
 
 ```bash
 KEY=owk_xxx   # generated in the web console "API keys" page
@@ -133,12 +142,33 @@ curl -s -X POST "http://localhost:8787/openapi/vaults/1/notes/AI/new-note.md" \
   -d '{"content": "# Written by AI\n\n..."}'
 ```
 
-Full docs and the agent-skill guide: [docs/openapi-skill.md](docs/openapi-skill.md)
+### MCP
+
+```jsonc
+{
+  "mcpServers": {
+    "owiki": {
+      "url": "http://localhost:8787/mcp",
+      "headers": { "X-API-Key": "owk_xxx" }
+    }
+  }
+}
+```
+
+```bash
+# Claude Code
+claude mcp add --transport http owiki http://localhost:8787/mcp \
+  --header "X-API-Key: owk_xxx"
+```
+
+Clients that don't support custom headers can use a query parameter: `http://localhost:8787/mcp?key=owk_xxx`.
+
+Full REST docs and the agent-skill guide: [docs/openapi-skill.md](docs/openapi-skill.md)
 
 ## 📖 Documentation
 
 - [Website](https://johnhom1024.github.io/owiki/) — feature overview and how sync works
-- [AI API docs](docs/openapi-skill.md) — OpenAPI endpoints and the agent skill
+- [AI API docs](docs/openapi-skill.md) — OpenAPI endpoints, MCP `/mcp`, and the agent skill
 - [Versioning](docs/versioning.md) — image tags and the release process
 
 ## 🤝 Contributing

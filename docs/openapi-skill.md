@@ -1,6 +1,6 @@
 ---
 name: owiki
-description: "调用 owiki 自部署笔记同步服务的开放 REST API（/openapi/*），管理 Obsidian 笔记库：新建/读取/更新/删除/搜索文章。当用户要求把内容写入笔记、保存到 Obsidian、查笔记、在 owiki 上创建文章、或维护 owiki 服务器时使用。需要 API 密钥（X-API-Key 或 Bearer）。"
+description: "调用 owiki 自部署笔记同步服务的开放 REST API（/openapi/*）或 MCP（/mcp），管理 Obsidian 笔记库：新建/读取/更新/删除/搜索文章。当用户要求把内容写入笔记、保存到 Obsidian、查笔记、在 owiki 上创建文章、或维护 owiki 服务器时使用。需要 API 密钥（X-API-Key 或 Bearer）。有 MCP 的客户端可直接连 /mcp，无需读本文档。"
 ---
 
 # owiki — 自部署笔记同步服务开放 API
@@ -11,8 +11,8 @@ description: "调用 owiki 自部署笔记同步服务的开放 REST API（/open
 | --- | --- |
 | 生产地址 | `http://your-server:8787`（NAS 部署） |
 | 本地开发 | `http://localhost:8787` |
-| 协议 | REST + JSON；写操作实时广播到 Obsidian（插件自动拉取落盘） |
-| 认证 | 请求头 `X-API-Key: owk_xxx` 或 `Authorization: Bearer owk_xxx` |
+| 协议 | REST + JSON；写操作实时广播到 Obsidian（插件自动拉取落盘）。有 MCP 的客户端可直接连 `/mcp`，工具 schema 自描述 |
+| 认证 | 请求头 `X-API-Key: owk_xxx` 或 `Authorization: Bearer owk_xxx`；MCP 也接受 `?key=owk_xxx` |
 
 ## 获取 API 密钥
 
