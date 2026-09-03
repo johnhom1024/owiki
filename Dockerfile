@@ -17,7 +17,7 @@ RUN pnpm run build
 FROM golang:1.26.7-alpine AS go-builder
 WORKDIR /build
 
-# VERSION 由 .cnb.yml 通过 --build-arg 注入（取自 git describe）。
+# VERSION 由发版 workflow（.github/workflows/release.yml）通过 --build-arg 注入。
 # 未注入时回退 "dev"，与 main.go 默认值一致。
 ARG VERSION=dev
 
