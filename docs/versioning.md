@@ -21,12 +21,6 @@ docker build --build-arg VERSION=0.0.2 \
   -t johnhom1024/owiki:0.0.2 -t johnhom1024/owiki:latest .
 docker push johnhom1024/owiki:0.0.2
 docker push johnhom1024/owiki:latest
-
-# 3.（可选）同步国内 CNB 制品库
-docker tag johnhom1024/owiki:0.0.2 docker.cnb.cool/johnhom1024/owiki:0.0.2
-docker tag johnhom1024/owiki:latest docker.cnb.cool/johnhom1024/owiki:latest
-docker push docker.cnb.cool/johnhom1024/owiki:0.0.2
-docker push docker.cnb.cool/johnhom1024/owiki:latest
 ```
 
 发版后镜像分布：

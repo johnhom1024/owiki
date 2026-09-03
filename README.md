@@ -57,7 +57,7 @@ docker run -d --name owiki \
 ```
 
 <details>
-<summary>更多启动方式（docker-compose / 二进制 / 国内镜像源）</summary>
+<summary>更多启动方式（docker-compose / 二进制）</summary>
 
 ```yaml
 # docker-compose.yaml
@@ -77,11 +77,6 @@ services:
 ```
 
 ```bash
-# 国内镜像源（CNB 制品库，免登录拉取）
-docker run -d --name owiki -p 8787:8787 \
-  -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
-  docker.cnb.cool/johnhom1024/owiki:latest
-
 # 从源码构建
 git clone https://github.com/johnhom1024/owiki
 cd owiki

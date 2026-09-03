@@ -1,7 +1,5 @@
 # OWiki 生产部署编排
-# 镜像：Docker Hub（johnhom1024/owiki）为主；国内网络可换 CNB 制品库加速：
-#   image: docker.cnb.cool/johnhom1024/owiki:latest
-#   （CNB 源拉取前需 docker login docker.cnb.cool）
+# 镜像：Docker Hub（johnhom1024/owiki）
 #
 # 使用前设置环境变量：
 #   OWIKI_ADMIN_PASSWORD=<强密码> docker compose up -d

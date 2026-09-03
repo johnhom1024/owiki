@@ -150,8 +150,7 @@ const zh = {
   -e OWIKI_ADMIN_USER=admin \\
   -e OWIKI_ADMIN_PASSWORD=<强密码> \\
   -v ./owiki-data:/data \\
-  johnhom1024/owiki:latest
-# 国内网络可换镜像源：docker.cnb.cool/johnhom1024/owiki:latest`,
+  johnhom1024/owiki:latest`,
           },
           {
             name: 'docker-compose.yaml',
@@ -473,8 +472,7 @@ const en: Content = {
   -e OWIKI_ADMIN_USER=admin \\
   -e OWIKI_ADMIN_PASSWORD=<strong-password> \\
   -v ./owiki-data:/data \\
-  johnhom1024/owiki:latest
-# CNB registry mirror for CN networks: docker.cnb.cool/johnhom1024/owiki:latest`,
+  johnhom1024/owiki:latest`,
           },
           {
             name: 'docker-compose.yaml',

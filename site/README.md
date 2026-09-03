@@ -30,4 +30,4 @@ Hero（含同步动画演示图）→ 特性 → 同步原理（含协议表）�
 
 `.github/workflows/site.yml` 在 push main 且 `site/**` 有变更时自动构建部署（`SITE_BASE=/owiki/`），无需手动操作；也可在 Actions 页手动 workflow_dispatch。
 
-> 注意：`site/` 不在 `.cnb.yml` 的 `ifModify` 白名单里，改动不会触发 Docker 镜像构建。
+> 注意：`site/` 改动只触发官网部署；Docker 镜像构建由 `v*` tag 触发（`.github/workflows/release.yml`），两者互不影响。

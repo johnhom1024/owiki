@@ -57,7 +57,7 @@ docker run -d --name owiki \
 ```
 
 <details>
-<summary>More options (docker-compose / binary / CN mirror)</summary>
+<summary>More options (docker-compose / binary)</summary>
 
 ```yaml
 # docker-compose.yaml
@@ -77,11 +77,6 @@ services:
 ```
 
 ```bash
-# CN registry mirror (CNB, no login required)
-docker run -d --name owiki -p 8787:8787 \
-  -e OWIKI_ADMIN_PASSWORD=... -v ./owiki-data:/data \
-  docker.cnb.cool/johnhom1024/owiki:latest
-
 # Build from source
 git clone https://github.com/johnhom1024/owiki
 cd owiki
