@@ -133,24 +133,35 @@ export function FileViewPage() {
   }
 
   // 保存后的同步回执：插件 fetch 落盘后服务端推 note.synced，提示升级为“已同步”，
-  // 几秒后自动收起。插件离线时停在“正在同步”，语义准确（确实还没同步）。
+  // 4s 后自动收起。插件离线时停在“正在同步”，语义准确（确实还没同步）。
+  //
+  // 两个竞态都要接住：
+  // 1) 插件 fetch 可能快于保存的 HTTP 响应 → waiting 判定含 saving 阶段；
+  // 2) 回执先到、响应后到 → save 成功路径用函数式 setNotice，不把“已同步”盖回“正在同步”。
+  // 监听器 deps 只用原始值（vaultId/path），notice/saving 走 ref 镜像，
+  // 避免 effect 随状态翻新而重挂、顺手清掉 4s 收起定时器。
+  const syncWaitRef = useRef({ saving, notice })
+  syncWaitRef.current = { saving, notice }
+  const curVaultId = file?.vaultId
+  const curPath = file?.path
   useEffect(() => {
-    const waiting = notice === t.fileView.saved || notice === t.fileView.merged
-    if (!waiting) return
+    if (curVaultId === undefined || curPath === undefined) return
     let timer: number | undefined
     const onSynced = (e: Event) => {
       const detail = (e as CustomEvent<{ vaultId: number; path: string }>).detail
-      if (detail && file && detail.vaultId === file.vaultId && detail.path === file.path) {
-        setNotice(t.fileView.syncedToClients)
-        timer = window.setTimeout(() => setNotice(null), 4000)
-      }
+      if (!detail || detail.vaultId !== curVaultId || detail.path !== curPath) return
+      const { saving: s, notice: n } = syncWaitRef.current
+      if (!(s || n === t.fileView.saved || n === t.fileView.merged)) return
+      setNotice(t.fileView.syncedToClients)
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(() => setNotice(null), 4000)
     }
     window.addEventListener('owiki-note-synced', onSynced)
     return () => {
       window.removeEventListener('owiki-note-synced', onSynced)
       if (timer) window.clearTimeout(timer)
     }
-  }, [notice, file, t])
+  }, [curVaultId, curPath, t])
 
   // 分屏预览防抖：避免每个按键都跑一遍 Obsidian 预处理 + react-markdown
   useEffect(() => {
@@ -185,7 +196,14 @@ export function FileViewPage() {
       } catch {
         /* ignore */
       }
-      setNotice(res.merged ? t.fileView.merged : t.fileView.saved)
+      // 回执可能先于本响应到达（插件 fetch 更快）：已是“已同步”就不再降级
+      setNotice((prev) =>
+        prev === t.fileView.syncedToClients
+          ? prev
+          : res.merged
+            ? t.fileView.merged
+            : t.fileView.saved,
+      )
     } catch (e) {
       if (e instanceof ConflictError) {
         setConflict({
