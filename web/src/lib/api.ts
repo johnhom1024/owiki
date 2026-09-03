@@ -20,6 +20,8 @@ export interface Stats {
 export interface Health {
   status: string
   clients: number
+  /** 服务端版本（ldflags 注入，本地 dev 为 "dev"） */
+  version?: string
 }
 
 export interface VaultMeta {

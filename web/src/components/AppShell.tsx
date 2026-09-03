@@ -8,10 +8,9 @@ import {
   KeyRound,
   LogOut,
   Menu,
-  Moon,
+  Settings,
   Settings2,
   ShieldCheck,
-  Sun,
   X,
 } from 'lucide-react'
 import { api, type FileMeta, type VaultMeta } from '@/lib/api.ts'
@@ -20,64 +19,23 @@ import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { CreateVaultDialog } from '@/components/CreateVaultDialog.tsx'
 import { FileTree } from '@/components/FileTree.tsx'
 import { Logo } from '@/components/Logo.tsx'
+import { SettingsDialog } from '@/components/SettingsDialog.tsx'
 
-/* ============================================================
-   暗色主题：跟随系统，可手动切换并持久化
-   ============================================================ */
-
-type Theme = 'light' | 'dark'
-
-function readInitialTheme(): Theme {
-  try {
-    const saved = localStorage.getItem('owiki-theme')
-    if (saved === 'light' || saved === 'dark') return saved
-  } catch {
-    /* ignore */
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle('dark', theme === 'dark')
-}
-
-function useTheme() {
-  const [theme, setTheme] = useState<Theme>(readInitialTheme)
-  useEffect(() => {
-    applyTheme(theme)
-    try {
-      localStorage.setItem('owiki-theme', theme)
-    } catch {
-      /* ignore */
-    }
-  }, [theme])
-  return { theme, toggle: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')) }
-}
-
-function ThemeButton({ theme, toggle }: { theme: Theme; toggle: () => void }) {
+/** 移动端顶栏的设置齿轮：自持弹窗状态 */
+function SettingsDrawerButton() {
   const { t } = useLang()
+  const [open, setOpen] = useState(false)
   return (
-    <button
-      onClick={toggle}
-      title={theme === 'dark' ? t.nav.themeToLight : t.nav.themeToDark}
-      className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md"
-    >
-      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-    </button>
-  )
-}
-
-/** 语言切换按钮：中/EN 互切 */
-function LangButton() {
-  const { t, toggle } = useLang()
-  return (
-    <button
-      onClick={toggle}
-      title={t.nav.langToggle === 'EN' ? 'Switch to English' : '切换到中文'}
-      className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md text-xs font-semibold"
-    >
-      {t.nav.langToggle}
-    </button>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        title={t.nav.settings}
+        className="text-muted-foreground hover:bg-sidebar-accent rounded-md p-2"
+      >
+        <Settings className="size-5" />
+      </button>
+      <SettingsDialog open={open} onOpenChange={setOpen} />
+    </>
   )
 }
 
@@ -96,8 +54,6 @@ function SidebarBody({
   syncProgress,
   onLogout,
   onNavigated,
-  theme,
-  toggleTheme,
   showClose,
   onClose,
 }: {
@@ -109,8 +65,6 @@ function SidebarBody({
   syncProgress?: Record<number, { total: number; done: number }>
   onLogout?: () => void
   onNavigated?: () => void
-  theme: Theme
-  toggleTheme: () => void
   showClose?: boolean
   onClose?: () => void
 }) {
@@ -119,6 +73,7 @@ function SidebarBody({
   const { t } = useLang()
 
   const [creating, setCreating] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const vaultId = useMemo(() => {
     const m = location.pathname.match(/^\/vaults\/(\d+)/)
@@ -319,12 +274,18 @@ function SidebarBody({
               <span>{t.nav.logout}</span>
             </button>
           )}
-          <ThemeButton theme={theme} toggle={toggleTheme} />
-          <LangButton />
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title={t.nav.settings}
+            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-8 items-center justify-center rounded-md"
+          >
+            <Settings className="size-4" />
+          </button>
         </div>
       </div>
 
       <CreateVaultDialog open={creating} onOpenChange={setCreating} onCreated={onRefresh} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }
@@ -381,7 +342,6 @@ export function AppShell({
   children: ReactNode
 }) {
   const navigate = useNavigate()
-  const { theme, toggle } = useTheme()
   const { t } = useLang()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -395,8 +355,6 @@ export function AppShell({
           treeRefreshTick={treeRefreshTick}
           syncProgress={syncProgress}
           onLogout={onLogout}
-          theme={theme}
-          toggleTheme={toggle}
         />
       </aside>
 
@@ -416,8 +374,7 @@ export function AppShell({
             <span className="text-sm font-semibold">{t.nav.appName}</span>
           </button>
           <div className="flex-1" />
-          <ThemeButton theme={theme} toggle={toggle} />
-          <LangButton />
+          <SettingsDrawerButton />
         </div>
         {/* 移动端抽屉 */}
         {drawerOpen && (
@@ -434,8 +391,6 @@ export function AppShell({
                   onLogout?.()
                 }}
                 onNavigated={() => setDrawerOpen(false)}
-                theme={theme}
-                toggleTheme={toggle}
                 showClose
                 onClose={() => setDrawerOpen(false)}
               />
