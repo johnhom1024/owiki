@@ -1,9 +1,8 @@
 name: Release Docker image
 
-# 打 v* tag 即发版：
-#   git tag v0.0.2 && git push origin v0.0.2
-# 构建多架构镜像（amd64/arm64）推 Docker Hub：
-#   johnhom1024/owiki:<版本号>（永久保留）+ :latest（滚动）
+# 打 v* tag 即发版（scripts/tag.sh 只在本地打 tag，推远程后走这里）：
+#   正式    v0.0.3          → johnhom1024/owiki:0.0.3 + :latest，GitHub Release
+#   预发布  v0.0.3-beta.1   → johnhom1024/owiki:0.0.3-beta.1（钉死，不更新 latest），GitHub pre-release
 # 版本号经 --build-arg VERSION 注入二进制，/api/health.version 透出。
 on:
   push:
@@ -33,9 +32,31 @@ jobs:
 
       - name: Compute image tag
         id: ver
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Build and push
+      - name: Build and push (prerelease, pinned only)
+        if: steps.ver.outputs.prerelease == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ steps.ver.outputs.version }}
+          tags: |
+            johnhom1024/owiki:${{ steps.ver.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push (stable, version + latest)
+        if: steps.ver.outputs.prerelease == 'false'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -52,14 +73,21 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ steps.ver.outputs.prerelease }}
         run: |
           tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          extra=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            extra+=(--prerelease)
+          fi
           gh release create "$tag" \
             --title "$tag" \
-            --notes "Docker image \`johnhom1024/owiki:${GITHUB_REF_NAME#v}\` published.
+            "${extra[@]}" \
+            --notes "Docker image \`johnhom1024/owiki:${version}\` published.
 
           \`\`\`bash
-          docker pull johnhom1024/owiki:${GITHUB_REF_NAME#v}
-          curl -s http://localhost:8787/api/health   # version 应为 ${GITHUB_REF_NAME#v}
+          docker pull johnhom1024/owiki:${version}
+          curl -s http://localhost:8787/api/health   # version 应为 ${version}
           \`\`\`" \
             --draft=false

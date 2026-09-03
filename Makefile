@@ -20,7 +20,8 @@ PLUGIN_ID   := owiki-sync
 PLUGIN_RELOAD ?= 1
 
 .PHONY: run build start test-client web web-dev clean help \
-        plugin-build plugin-deploy plugin-reload plugin-clean
+        plugin-build plugin-deploy plugin-reload plugin-clean \
+        tag-list tag-beta tag-release
 
 run:            ## 开发运行（默认 :8787）
 	go run -ldflags '$(LDFLAGS)' .
@@ -82,6 +83,17 @@ plugin-reload:  ## 仅触发 Obsidian CLI 插件重载（需 obsidian CLI 在 PA
 
 plugin-clean:   ## 清理插件构建产物（dist + node_modules）
 	rm -rf "$(PLUGIN_SRC)/dist" "$(PLUGIN_SRC)/node_modules"
+
+# --- 发版 tag（只打本地 tag，不 push） ---
+
+tag-list:       ## 列出正式版 / beta tag 和下一步建议
+	@./scripts/tag.sh list
+
+tag-beta:       ## 提议并打下一个 beta tag（SERIES=0.0.3 可指定系列）
+	@./scripts/tag.sh beta $(SERIES)
+
+tag-release:    ## 提议并打下一个正式版 tag（TAG_VERSION=0.0.3 可指定）
+	@./scripts/tag.sh release $(TAG_VERSION)
 
 help:           ## 显示帮助
 	@echo "用法: make <target>，可用任务:"

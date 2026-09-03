@@ -1,46 +1,75 @@
 # 版本与镜像发布策略
 
-OWiki 采用主流开源项目的「latest 滚动 + 版本号永久保留」分发模式。
+OWiki 采用「版本号 tag 永久钉死 + latest 只跟正式版」的分发模式。
+预发布同样钉死，没有浮动的 `:beta`。
 
 ## Tag 约定
 
 | 层面 | 格式 | 示例 | 说明 |
 | --- | --- | --- | --- |
-| git tag | `v` + SemVer | `v0.0.1` | git 社区惯例，标记一次发版 |
-| 镜像 tag | 纯 SemVer | `0.0.1` | Docker 社区惯例（nginx/postgres 同款） |
-| 滚动 tag | `latest` | — | 永远指向最新一次发版 |
+| git tag（正式） | `v` + SemVer | `v0.0.2` | 标记一次正式发版 |
+| git tag（预发布） | `v` + SemVer + `-beta.N` | `v0.0.3-beta.1` | 远程测试用，序号人手动递增 |
+| 镜像 tag | 去掉 `v` 前缀 | `0.0.2` / `0.0.3-beta.1` | 与 git tag 一一对应，永久保留 |
+| 滚动 tag | `latest` | — | **只**在正式发版时更新，预发布不碰 |
 
-## 发版流程（当前为手动）
+## 用脚本打 tag
+
+`scripts/tag.sh` 负责列出现有 tag、算出下一个号、在本地打 tag。**不 push**——推远程必须你明确说。
 
 ```bash
-# 1. 打 tag
-git tag v0.0.2 && git push origin v0.0.2
-
-# 2. 构建并推送镜像（本地 Docker，一次构建双 tag）
-docker build --build-arg VERSION=0.0.2 \
-  -t johnhom1024/owiki:0.0.2 -t johnhom1024/owiki:latest .
-docker push johnhom1024/owiki:0.0.2
-docker push johnhom1024/owiki:latest
+./scripts/tag.sh                 # 列出正式版 / 进行中的 beta / 下一步建议
+./scripts/tag.sh beta            # 基于最新正式版，提议 v0.0.3-beta.1（已有则 +1）
+./scripts/tag.sh beta 0.0.3      # 指定系列
+./scripts/tag.sh release         # 提议下一个正式版 v0.0.3
+./scripts/tag.sh release 0.1.0   # 指定正式版号
 ```
 
-发版后镜像分布：
+脚本会先打印将要打的 tag 并询问确认，打完提示 `git push origin <tag>`。
+
+也可以 `make tag-list` / `make tag-beta` / `make tag-release`。
+
+## 发版流程
+
+> 流水线在 `.github/workflows/release.yml`，push `v*` tag 触发，多架构构建推 Docker Hub。
+
+**预发布（远程测试，不更新 latest）：**
+
+```bash
+./scripts/tag.sh beta          # 本地打 v0.0.3-beta.1
+git push origin v0.0.3-beta.1  # 触发 CI
+```
+
+镜像：`johnhom1024/owiki:0.0.3-beta.1`（钉死）。GitHub 标成 pre-release。
+测试机 compose 写死这个 tag，测下一份再改 yaml。
+
+**正式发版（更新 latest）：**
+
+```bash
+./scripts/tag.sh release       # 本地打 v0.0.3
+git push origin v0.0.3
+```
+
+镜像：
 
 ```
-docker.io/johnhom1024/owiki:0.0.2      ← 新版本，永久保留
-docker.io/johnhom1024/owiki:latest     ← 滚动指向 0.0.2
-（旧 tag 0.0.1 等不受影响，随时可回退）
+docker.io/johnhom1024/owiki:0.0.3      ← 新版本，永久保留
+docker.io/johnhom1024/owiki:latest     ← 滚动指向 0.0.3
+（0.0.2、0.0.3-beta.1 等不受影响）
 ```
+
+同一系列一旦打了正式 tag（如 `v0.0.3`），脚本会拒绝再打 `v0.0.3-beta.*`。
 
 ## 版本号注入
 
 版本号经 `--build-arg VERSION` → Go `-ldflags` 注入 `main.version`，
-运行时通过 `/api/health` 的 `version` 字段透出，可用于部署后验证与排障。
+运行时通过 `/api/health` 的 `version` 字段透出（预发布会显示 `0.0.3-beta.1`）。
 
 ## SemVer 语义
 
 - `0.x.x`：早期开发阶段，API 与协议可能有破坏性变更
 - `1.0.0` 起：承诺向后兼容（主版本内）
 - 破坏性变更升主版本；新功能升次版本；修复升修订号
+- 预发布用 `-beta.N`，只表示「这个正式版的第 N 个候选」，不改变上面的 SemVer 含义
 
 ## 回退
 
