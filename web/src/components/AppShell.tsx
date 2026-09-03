@@ -187,9 +187,6 @@ function SidebarBody({
               >
                 <BookOpen className="size-4 shrink-0 opacity-70" />
                 <span className="min-w-0 flex-1 truncate">{v.name}</span>
-                {v.clients > 0 && (
-                  <span className="bg-primary size-2 shrink-0 rounded-full" title={fill(t.nav.clientsOnline, { n: v.clients })} />
-                )}
               </button>
               {/* 悬停浮现的设置入口 */}
               <button
