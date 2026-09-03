@@ -21,6 +21,15 @@
     "vite": "^8.2.0"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.2",
+    "@codemirror/view": "^6.43.10",
+    "@lezer/highlight": "^1.2.3",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-label": "^2.1.15",
     "@radix-ui/react-separator": "^1.1.15",

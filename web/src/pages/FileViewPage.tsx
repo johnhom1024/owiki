@@ -1,17 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type UIEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
-import rehypeRaw from 'rehype-raw'
-import { ChevronLeft, Pencil } from 'lucide-react'
+import { BookOpen, ChevronLeft, Columns2, Pencil } from 'lucide-react'
 import { api, ConflictError, type FileDetail, type FileMeta } from '@/lib/api.ts'
-import { preprocessObsidian } from '@/lib/obsidianMarkdown.ts'
-import { markdownComponents } from '@/components/ObsidianRender.tsx'
+import { NoteReadingView } from '@/components/NoteReadingView.tsx'
 import { ShareButton } from '@/components/ShareButton.tsx'
 import { useLang } from '@/i18n/LangProvider.tsx'
 import { cn } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
+
+const MarkdownEditor = lazy(() =>
+  import('@/components/MarkdownEditor.tsx').then((m) => ({ default: m.MarkdownEditor })),
+)
+
+/** 三种视图：阅读 / 源码 / 分屏（同 Obsidian） */
+type ViewMode = 'reading' | 'source' | 'split'
+
+const VIEW_CYCLE: ViewMode[] = ['reading', 'source', 'split']
+
+function draftKey(fileId: number) {
+  return `owiki-draft:${fileId}`
+}
 
 export function FileViewPage() {
   const { vid, id } = useParams()
@@ -22,13 +30,27 @@ export function FileViewPage() {
   const [file, setFile] = useState<FileDetail | null>(null)
   const [draft, setDraft] = useState('')
   const [baseHash, setBaseHash] = useState('')
-  const [editing, setEditing] = useState(false)
+  const [view, setView] = useState<ViewMode>('reading')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [vaultFiles, setVaultFiles] = useState<FileMeta[]>([])
   const [vaultName, setVaultName] = useState('')
+  const [conflict, setConflict] = useState<{
+    serverContent: string
+    serverHash: string
+    mergedHint: string
+  } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [forceNext, setForceNext] = useState(false)
+  const [dirty, setDirty] = useState(false)
 
-  // 当前 vault 的文件列表（wikilink 解析用），只在进入页面时拉一次
+  const editorPaneRef = useRef<HTMLDivElement>(null)
+  const previewPaneRef = useRef<HTMLDivElement>(null)
+  const syncingRef = useRef(false)
+  const saveRef = useRef<(force?: boolean) => Promise<void>>(async () => {})
+  const [preview, setPreview] = useState('')
+
+  // 当前 vault 的文件列表（wikilink 解析 + 补全），只在进入页面时拉一次
   useEffect(() => {
     const v = Number(vid)
     if (!Number.isFinite(v)) return
@@ -41,33 +63,53 @@ export function FileViewPage() {
       .then((s) => setVaultName(s.data.name))
       .catch(() => setVaultName(''))
   }, [vid])
-  const [conflict, setConflict] = useState<{
-    serverContent: string
-    serverHash: string
-    mergedHint: string
-  } | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [forceNext, setForceNext] = useState(false)
 
-  const load = useCallback(() => {
+  // 切文章时回到阅读模式，避免上一篇的编辑态残留
+  useEffect(() => {
+    setView('reading')
+    setNotice(null)
+    setError(null)
+    setConflict(null)
+  }, [fileId])
+
+  useEffect(() => {
+    let cancelled = false
     setError(null)
     api
       .getFile(fileId)
       .then((f) => {
+        if (cancelled) return
         setFile(f)
-        setDraft(f.content)
         setBaseHash(f.contentHash)
         setConflict(null)
         setForceNext(false)
+        // 本地草稿优先（刷新不丢稿），但内容必须与服务器不同才算 dirty
+        try {
+          const cached = localStorage.getItem(draftKey(fileId))
+          if (cached && cached !== f.content) {
+            setDraft(cached)
+            setDirty(true)
+            setNotice(t.fileView.draftRestored)
+          } else {
+            setDraft(f.content)
+            setDirty(false)
+            localStorage.removeItem(draftKey(fileId))
+          }
+        } catch {
+          setDraft(f.content)
+          setDirty(false)
+        }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : t.common.loadFailed))
-  }, [fileId])
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : t.common.loadFailed)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [fileId, t])
 
-  useEffect(() => {
-    load()
-  }, [load])
-
-  // 浏览器标题：OWiki · vault 名 · 文章标题（文件名去 .md 后缀）
+  // 浏览器标题：OWiki · vault 名 · 文章标题
   const fileTitle = file?.path.split('/').pop()?.replace(/\.md$/i, '')
   useEffect(() => {
     if (fileTitle && vaultName) {
@@ -78,8 +120,31 @@ export function FileViewPage() {
     }
   }, [fileTitle, vaultName])
 
+  const onDraftChange = (next: string) => {
+    setDraft(next)
+    const isDirty = next !== (file?.content ?? '')
+    setDirty(isDirty)
+    try {
+      if (isDirty) localStorage.setItem(draftKey(fileId), next)
+      else localStorage.removeItem(draftKey(fileId))
+    } catch {
+      /* quota */
+    }
+  }
+
+  // 分屏预览防抖：避免每个按键都跑一遍 Obsidian 预处理 + react-markdown
+  useEffect(() => {
+    if (view !== 'split') {
+      setPreview(draft)
+      return
+    }
+    const id = window.setTimeout(() => setPreview(draft), 160)
+    return () => window.clearTimeout(id)
+  }, [draft, view])
+
   const save = async (force = false) => {
     if (!file) return
+    if (!force && !forceNext && draft === file.content) return
     setSaving(true)
     setError(null)
     setNotice(null)
@@ -94,7 +159,12 @@ export function FileViewPage() {
       setBaseHash(res.data.contentHash)
       setConflict(null)
       setForceNext(false)
-      setEditing(false)
+      setDirty(false)
+      try {
+        localStorage.removeItem(draftKey(fileId))
+      } catch {
+        /* ignore */
+      }
       setNotice(res.merged ? t.fileView.merged : t.fileView.saved)
     } catch (e) {
       if (e instanceof ConflictError) {
@@ -110,27 +180,85 @@ export function FileViewPage() {
       setSaving(false)
     }
   }
+  saveRef.current = save
 
-  // Obsidian 语法预处理（wikilink / 图片嵌入），仅在阅读模式做
-  const rendered = useMemo(() => {
-    if (!file) return null
-    return preprocessObsidian(file.content, file.vaultId, vaultFiles, {
-      attachNotSynced: t.obsidian.attachNotSynced,
-      embedNote: t.obsidian.embedNote,
-      notFound: t.obsidian.notFound,
+  const cancelEdit = () => {
+    setDraft(file?.content ?? '')
+    setDirty(false)
+    setConflict(null)
+    setView('reading')
+    try {
+      localStorage.removeItem(draftKey(fileId))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const cycleView = () => {
+    setView((v) => VIEW_CYCLE[(VIEW_CYCLE.indexOf(v) + 1) % VIEW_CYCLE.length])
+  }
+
+  // Cmd+E 切换视图；未保存离开时浏览器提醒
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 's') {
+        e.preventDefault()
+        void saveRef.current()
+        return
+      }
+      if (k !== 'e') return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      cycleView()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (!dirty) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
+
+  /** 分屏滚动同步：按百分比对齐，避免一侧滚动时无限循环 */
+  const syncScroll = (src: HTMLElement, dst: HTMLElement) => {
+    if (syncingRef.current) return
+    const srcMax = src.scrollHeight - src.clientHeight
+    const dstMax = dst.scrollHeight - dst.clientHeight
+    if (srcMax <= 0 || dstMax <= 0) return
+    syncingRef.current = true
+    dst.scrollTop = (src.scrollTop / srcMax) * dstMax
+    requestAnimationFrame(() => {
+      syncingRef.current = false
     })
-  }, [file, vaultFiles, t])
+  }
 
-  // 附件（图片等二进制）：详情页直接展示本体
-  const isAttachment = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|pdf)$/i.test(file?.path ?? '')
+  const onEditorScroll = (e: UIEvent<HTMLDivElement>) => {
+    const dst = previewPaneRef.current
+    if (dst) syncScroll(e.currentTarget, dst)
+  }
+  const onPreviewScroll = (e: UIEvent<HTMLDivElement>) => {
+    const dst = editorPaneRef.current
+    if (dst) syncScroll(e.currentTarget, dst)
+  }
 
   const crumbs = file?.path.split('/') ?? []
+  const isEditing = view !== 'reading'
+  const isSplit = view === 'split'
 
   return (
-    <div>
-      {/* 文档头：面包屑 + 操作按钮（吸顶，Obsidian view-header 式） */}
-      <header className="bg-background/80 sticky top-0 z-10 border-b border-border/70 backdrop-blur">
-        <div className="mx-auto flex h-12 max-w-[52rem] items-center gap-2 px-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* 文档头：面包屑 + 视图切换 + 操作按钮（吸顶，Obsidian view-header 式） */}
+      <header className="bg-background/80 sticky top-0 z-10 shrink-0 border-b border-border/70 backdrop-blur">
+        <div className="mx-auto flex h-12 w-full max-w-none items-center gap-2 px-4">
           <Button
             variant="ghost"
             size="icon"
@@ -144,159 +272,203 @@ export function FileViewPage() {
             {crumbs.map((seg, i) => (
               <span key={i}>
                 {i > 0 && <span className="mx-1 opacity-50">/</span>}
-                <span className={cn(i === crumbs.length - 1 && 'text-foreground font-medium')}>{seg}</span>
+                <span className={cn(i === crumbs.length - 1 && 'text-foreground font-medium')}>
+                  {seg}
+                  {i === crumbs.length - 1 && dirty && (
+                    <span className="bg-primary ml-1.5 inline-block size-1.5 rounded-full align-middle" title="unsaved" />
+                  )}
+                </span>
               </span>
             ))}
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {/* 分享：开启后外链 /share/<token> 免登录可看 */}
-            {file && !editing && <ShareButton fileId={file.id} />}
-            {!editing ? (
-              <Button size="sm" onClick={() => setEditing(true)}>
+            {/* 视图切换：阅读 / 源码 / 分屏 */}
+            <div className="bg-muted/60 mr-1 hidden items-center rounded-md p-0.5 sm:flex">
+              <ViewBtn
+                active={view === 'reading'}
+                title={t.fileView.viewReading}
+                onClick={() => setView('reading')}
+              >
+                <BookOpen className="size-3.5" />
+              </ViewBtn>
+              <ViewBtn
+                active={view === 'source'}
+                title={t.fileView.viewSource}
+                onClick={() => setView('source')}
+              >
+                <Pencil className="size-3.5" />
+              </ViewBtn>
+              <ViewBtn
+                active={view === 'split'}
+                title={t.fileView.viewSplit}
+                onClick={() => setView('split')}
+              >
+                <Columns2 className="size-3.5" />
+              </ViewBtn>
+            </div>
+            {file && view === 'reading' && <ShareButton fileId={file.id} />}
+            {view === 'reading' && (
+              <Button size="sm" onClick={() => setView('source')}>
                 <Pencil /> {t.fileView.edit}
               </Button>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditing(false)
-                    setDraft(file?.content ?? '')
-                    setConflict(null)
-                  }}
-                >
-                  {t.common.cancel}
-                </Button>
-                <Button size="sm" disabled={saving} onClick={() => void save(false)}>
-                  {saving ? t.common.saving : t.common.save}
-                </Button>
-              </>
+            )}
+            {view !== 'reading' && (
+              <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                {t.common.cancel}
+              </Button>
+            )}
+            {(view !== 'reading' || dirty) && (
+              <Button size="sm" disabled={saving || !dirty} onClick={() => void save(false)}>
+                {saving ? t.common.saving : t.common.save}
+              </Button>
             )}
           </div>
         </div>
       </header>
 
-      {/* 正文：无卡片，直接铺在背景上，Obsidian 可读行宽居中 */}
-      <section className="mx-auto w-full max-w-[42rem] px-6 pt-8 pb-24">
-
       {notice && (
-        <div className="mb-4 rounded-md border border-primary/25 bg-primary/10 px-4 py-3 text-sm">
-          {notice}
+        <div className="shrink-0 px-4 pt-3">
+          <div className="rounded-md border border-primary/25 bg-primary/10 px-4 py-2 text-sm">{notice}</div>
         </div>
       )}
       {error && (
-        <div className="bg-destructive/10 text-destructive mb-4 rounded-md border px-4 py-3 text-sm">
-          {error}
+        <div className="shrink-0 px-4 pt-3">
+          <div className="bg-destructive/10 text-destructive rounded-md border px-4 py-2 text-sm">{error}</div>
         </div>
       )}
       {conflict && (
-        <div className="mb-4 space-y-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">{t.fileView.conflictTitle}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void save(true)}>
-              {t.fileView.overwriteRemote}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDraft(conflict.serverContent)
-                setBaseHash(conflict.serverHash)
-                setFile(
-                  file
-                    ? { ...file, content: conflict.serverContent, contentHash: conflict.serverHash }
-                    : file,
-                )
-                setConflict(null)
-                setEditing(false)
-                setNotice(t.fileView.droppedLocal)
-              }}
-            >
-              用远程的
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDraft(conflict.mergedHint || draft)
-                setConflict(null)
-                setForceNext(true)
-                setNotice(t.fileView.insertedMarkers)
-              }}
-            >
-              {t.fileView.viewConflict}
-            </Button>
+        <div className="shrink-0 px-4 pt-3">
+          <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-medium">{t.fileView.conflictTitle}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => void save(true)}>
+                {t.fileView.overwriteRemote}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDraft(conflict.serverContent)
+                  setBaseHash(conflict.serverHash)
+                  setFile(
+                    file
+                      ? { ...file, content: conflict.serverContent, contentHash: conflict.serverHash }
+                      : file,
+                  )
+                  setConflict(null)
+                  setDirty(false)
+                  setView('reading')
+                  setNotice(t.fileView.droppedLocal)
+                }}
+              >
+                {t.fileView.useRemote}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDraft(conflict.mergedHint || draft)
+                  setConflict(null)
+                  setForceNext(true)
+                  setDirty(true)
+                  setNotice(t.fileView.insertedMarkers)
+                }}
+              >
+                {t.fileView.viewConflict}
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      {!file && !error && <p className="text-muted-foreground py-20 text-center">{t.common.loading}</p>}
-
-      {file && editing && (
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="focus:ring-ring/50 min-h-[480px] w-full resize-y rounded-lg border bg-transparent p-4 font-mono text-sm leading-relaxed focus:ring-[3px] focus:outline-none"
-        />
+      {!file && !error && (
+        <p className="text-muted-foreground flex-1 py-20 text-center">{t.common.loading}</p>
       )}
 
-      {file && !editing && isAttachment && (
-        <article>
-          <h1 className="inline-title">{file.path.split('/').pop()}</h1>
-          <div className="mt-6 flex justify-center">
-            <img
-              src={`/api/vaults/${file.vaultId}/attachments/${encodeURI(file.path)}`}
-              alt={file.path}
-              className="max-w-full rounded-lg border shadow-sm"
-            />
-          </div>
-        </article>
-      )}
-
-      {file && !editing && !isAttachment && rendered && (
-        <article>
-          {/* Obsidian 内联标题：大字号直接铺在背景上 */}
-          <h1 className="inline-title">{fileTitle}</h1>
-
-          {/* YAML frontmatter 属性面板 */}
-          {rendered.properties.length > 0 && (
-            <div className="obsidian-properties">
-              {rendered.properties.map((p) => (
-                <div className="property-row" key={p.key}>
-                  <span className="property-key">{p.key}</span>
-                  <span className="property-value">{p.value}</span>
-                </div>
-              ))}
+      {file && (
+        <div
+          className={cn(
+            'flex min-h-0 flex-1',
+            isSplit ? 'flex-col md:flex-row' : 'flex-col',
+          )}
+        >
+          {/* 源码 / 分屏左侧：编辑器 */}
+          {isEditing && (
+            <div
+              ref={editorPaneRef}
+              onScroll={isSplit ? onEditorScroll : undefined}
+              className={cn(
+                'min-h-0 overflow-y-auto',
+                isSplit ? 'h-1/2 border-b md:h-auto md:min-h-0 md:w-1/2 md:border-r md:border-b-0' : 'flex-1',
+              )}
+            >
+              <Suspense fallback={<p className="text-muted-foreground p-6 text-sm">{t.common.loading}</p>}>
+                <MarkdownEditor
+                  key={file.id}
+                  value={draft}
+                  onChange={onDraftChange}
+                  onSave={() => void save(false)}
+                  linkSuggestions={vaultFiles}
+                />
+              </Suspense>
             </div>
           )}
 
-          <div className="markdown-body prose prose-zinc dark:prose-invert max-w-none">
-            <Markdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw, rehypeHighlight]}
-              components={{
-                // 文章内超链接默认新标签页打开（站内跳转除外）
-                a: ({ href, children }) => {
-                  const internal = href?.startsWith('/') || href?.startsWith('#')
-                  return internal ? (
-                    <a href={href}>{children}</a>
-                  ) : (
-                    <a href={href} target="_blank" rel="noreferrer noopener">
-                      {children}
-                    </a>
-                  )
-                },
-                // callout：读取预处理标记，渲染 Obsidian 彩色引用块
-                ...markdownComponents,
-              }}
+          {/* 阅读 / 分屏右侧：预览（复用同一套渲染） */}
+          {(view === 'reading' || isSplit) && (
+            <div
+              ref={previewPaneRef}
+              onScroll={isSplit ? onPreviewScroll : undefined}
+              className={cn(
+                'min-h-0 overflow-y-auto',
+                isSplit ? 'h-1/2 md:h-auto md:min-h-0 md:w-1/2' : 'flex-1',
+              )}
             >
-              {rendered.markdown}
-            </Markdown>
-          </div>
-        </article>
+              <section
+                className={cn(
+                  'mx-auto w-full px-6 pt-8 pb-24',
+                  isSplit ? 'max-w-none' : 'max-w-[42rem]',
+                )}
+              >
+                <NoteReadingView
+                  content={view === 'split' ? preview : draft}
+                  vaultId={file.vaultId}
+                  path={file.path}
+                  files={vaultFiles}
+                />
+              </section>
+            </div>
+          )}
+        </div>
       )}
-    </section>
     </div>
+  )
+}
+
+function ViewBtn({
+  active,
+  title,
+  onClick,
+  children,
+}: {
+  active: boolean
+  title: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'inline-flex size-7 items-center justify-center rounded-sm',
+        active
+          ? 'bg-background text-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {children}
+    </button>
   )
 }

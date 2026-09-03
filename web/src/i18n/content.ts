@@ -294,6 +294,10 @@ const zh = {
     viewConflict: '查看冲突标记并手工改',
     droppedLocal: '已丢弃本地编辑，显示远程版本',
     insertedMarkers: '已插入冲突标记，请手工改完再保存（将覆盖远程）',
+    viewReading: '阅读视图',
+    viewSource: '源码视图',
+    viewSplit: '分屏预览',
+    draftRestored: '已恢复上次未保存的草稿',
   },
 
   share: {
@@ -621,6 +625,10 @@ const en: typeof zh = {
     viewConflict: 'Inspect conflict markers and edit manually',
     droppedLocal: 'Local edits discarded — showing the remote version',
     insertedMarkers: 'Conflict markers inserted — edit manually then save (will overwrite remote)',
+    viewReading: 'Reading view',
+    viewSource: 'Source view',
+    viewSplit: 'Split preview',
+    draftRestored: 'Restored unsaved draft from last time',
   },
 
   share: {

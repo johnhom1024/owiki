@@ -421,3 +421,163 @@
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.85em;
 }
+
+
+/* ============================================================
+   CodeMirror 6 源码编辑器（Obsidian 源码模式风格）
+   颜色全部走 design tokens，亮/暗自动跟随 .dark
+   ============================================================ */
+
+.markdown-editor-host {
+  min-height: 100%;
+  --cm-keyword: hsl(340 55% 48%);
+  --cm-string: hsl(145 45% 38%);
+  --cm-number: hsl(212 82% 45%);
+}
+.dark .markdown-editor-host {
+  --cm-keyword: hsl(340 70% 72%);
+  --cm-string: hsl(145 55% 62%);
+  --cm-number: hsl(212 80% 72%);
+}
+
+.markdown-editor-host .cm-editor {
+  height: auto;
+  min-height: 100%;
+  background: transparent;
+  color: var(--foreground);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'PingFang SC', 'Hiragino Sans GB', monospace;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.markdown-editor-host .cm-editor.cm-focused {
+  outline: none;
+}
+
+.markdown-editor-host .cm-scroller {
+  font-family: inherit;
+  overflow: visible;
+}
+
+.markdown-editor-host .cm-content {
+  min-height: 100%;
+  padding: 1.25rem 1.5rem 6rem;
+  caret-color: var(--primary);
+}
+
+.markdown-editor-host .cm-gutters {
+  background: transparent;
+  border-right: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.markdown-editor-host .cm-lineNumbers .cm-gutterElement {
+  padding: 0 0.6rem 0 0.4rem;
+  min-width: 2.4rem;
+}
+
+.markdown-editor-host .cm-activeLine {
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+}
+
+.markdown-editor-host .cm-activeLineGutter {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+  color: var(--foreground);
+}
+
+.markdown-editor-host .cm-selectionBackground,
+.markdown-editor-host .cm-editor ::selection {
+  background: color-mix(in oklab, var(--primary) 28%, transparent) !important;
+}
+
+.markdown-editor-host .cm-cursor {
+  border-left-color: var(--primary);
+}
+
+.markdown-editor-host .cm-matchingBracket {
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+/* ---- Obsidian 扩展语法装饰 ---- */
+
+.markdown-editor-host .cm-wikilink {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.markdown-editor-host .cm-wikilink-embed {
+  color: var(--primary);
+  opacity: 0.85;
+}
+
+.markdown-editor-host .cm-highlight {
+  background: hsl(46 95% 62% / 0.42);
+  border-radius: 2px;
+}
+
+.markdown-editor-host .cm-tag {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  border-radius: 999px;
+  padding: 0 0.35em;
+}
+
+.markdown-editor-host .cm-callout-line {
+  background: color-mix(in oklab, var(--primary) 7%, transparent);
+}
+
+/* ---- 自动补全下拉 ---- */
+
+.markdown-editor-host .cm-tooltip-autocomplete {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 12%, transparent);
+  overflow: hidden;
+}
+
+.markdown-editor-host .cm-tooltip-autocomplete ul {
+  font-family: inherit;
+  font-size: 0.8125rem;
+}
+
+.markdown-editor-host .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+  color: var(--foreground);
+}
+
+.markdown-editor-host .cm-completionLabel {
+  font-weight: 500;
+}
+
+.markdown-editor-host .cm-completionDetail {
+  color: var(--muted-foreground);
+  font-style: normal;
+  margin-left: 0.5rem;
+}
+
+/* ---- 搜索面板 ---- */
+
+.markdown-editor-host .cm-panel.cm-search {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+}
+
+.markdown-editor-host .cm-panel.cm-search input {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.4rem;
+}
+
+.markdown-editor-host .cm-searchMatch {
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+.markdown-editor-host .cm-searchMatch-selected {
+  background: color-mix(in oklab, var(--primary) 42%, transparent);
+}

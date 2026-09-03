@@ -398,8 +398,8 @@ export function AppShell({
           </div>
         )}
 
-        <main className="h-full overflow-y-auto pt-12 md:pt-0">
-          {children}
+        <main className="flex h-full min-h-0 flex-col overflow-hidden pt-12 md:pt-0">
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
         </main>
         <StatusBar vaults={vaults} syncProgress={syncProgress} />
       </div>
