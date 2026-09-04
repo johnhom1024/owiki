@@ -266,8 +266,11 @@ const zh = {
     language: '语言',
     langZh: '中文',
     langEn: 'English',
-    about: '关于',
-    versionUnknown: '未知',
+    plugins: '插件',
+    pluginsLoading: '加载功能列表…',
+    pluginsCore: '核心',
+    pluginsHint: '关闭的功能立即停用并从界面隐藏；数据保留，重新开启后恢复',
+    about: '关于',    versionUnknown: '未知',
     updateAvailable: '可用',
     updateStableTooltip: '有新正式版，点击查看更新说明',
     updatePreTooltip: '有新预发布版，点击查看更新说明',
@@ -353,6 +356,11 @@ const zh = {
     attachNotSynced: '附件未同步',
     embedNote: '嵌入笔记：',
     notFound: '未找到该笔记',
+  },
+
+  featureDisabled: {
+    title: '此功能已停用',
+    hint: '可在 设置 → 插件 中重新开启',
   },
 }
 
@@ -617,6 +625,10 @@ const en: typeof zh = {
     language: 'Language',
     langZh: '中文',
     langEn: 'English',
+    plugins: 'Plugins',
+    pluginsLoading: 'Loading features…',
+    pluginsCore: 'Core',
+    pluginsHint: 'Disabled features stop immediately and vanish from the UI; data is kept and restored on re-enable',
     about: 'About',
     versionUnknown: 'Unknown',
     updateAvailable: 'available',
@@ -704,6 +716,11 @@ const en: typeof zh = {
     attachNotSynced: 'attachment not synced',
     embedNote: 'Embedded note: ',
     notFound: 'note not found',
+  },
+
+  featureDisabled: {
+    title: 'This feature is disabled',
+    hint: 'Re-enable it in Settings → Plugins',
   },
 }
 

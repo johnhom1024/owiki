@@ -13,6 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { api, type VaultDetail, type VaultDevice, type VaultTokenInfo } from '@/lib/api.ts'
+import { useFeatures } from '@/lib/features.tsx'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { SyncLogCard } from '@/components/SyncLogCard.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
@@ -66,6 +67,7 @@ function upgradeToPageScheme(info: VaultTokenInfo | null): VaultTokenInfo | null
 export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: VaultSettingsPageProps = {}) {
   const { vid } = useParams()
   const { t, lang } = useLang()
+  const { isEnabled: featureEnabled } = useFeatures()
   const locale = lang === 'en' ? 'en-US' : 'zh-CN'
   const navigate = useNavigate()
   const vaultId = Number(vid)
@@ -522,8 +524,10 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
         </CardContent>
       </Card>
 
-      {/* 同步日志：新增/更新/删除/冲突的时间线，SSE 实时刷新 */}
-      <SyncLogCard vaultId={vaultId} refreshTick={logRefreshTicks?.[vaultId] ?? 0} />
+      {/* 同步日志：新增/更新/删除/冲突的时间线，SSE 实时刷新（synclog feature 关闭时隐藏） */}
+      {featureEnabled('synclog') && (
+        <SyncLogCard vaultId={vaultId} refreshTick={logRefreshTicks?.[vaultId] ?? 0} />
+      )}
 
       {/* 危险区 */}
       <Card className="border-destructive/40">

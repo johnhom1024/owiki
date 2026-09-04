@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"owiki/internal/feature"
 	"owiki/internal/hub"
 	"owiki/internal/model"
 	"owiki/internal/repository"
@@ -27,7 +28,8 @@ func Register(r *gin.Engine, repo *repository.NoteRepo, vaultRepo *repository.Va
 	oa := &openAPI{repo: repo, vaultRepo: vaultRepo, keys: apiKeyRepo, attach: attach, hub: h, syncLog: syncLog, share: share}
 
 	// ---------- AI/脚本调用的开放接口 ----------
-	g := r.Group("/openapi")
+	// feature 门禁：apikeys 关闭时 /openapi/* 整体 404
+	g := r.Group("/openapi", feature.Require("apikeys"))
 	g.Use(oa.auth())
 	{
 		g.GET("/vaults", oa.listVaults)
@@ -40,7 +42,8 @@ func Register(r *gin.Engine, repo *repository.NoteRepo, vaultRepo *repository.Va
 	}
 
 	// ---------- Web 管理端（需登录，与 /api 同域 cookie 认证） ----------
-	m := adminAPI.Group("/apikeys")
+	// feature 门禁：与 /openapi 同一个开关（apikeys 功能整体）
+	m := adminAPI.Group("/apikeys", feature.Require("apikeys"))
 	{
 		m.GET("", func(c *gin.Context) {
 			keys, err := apiKeyRepo.List(c.Request.Context())

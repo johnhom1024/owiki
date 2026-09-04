@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowUpCircle, BookOpen, Code, ExternalLink, Globe, Info, Monitor, Moon, Sun } from 'lucide-react'
+import { ArrowUpCircle, BookOpen, Code, ExternalLink, Globe, Info, Monitor, Moon, Puzzle, Sun } from 'lucide-react'
 import { api } from '@/lib/api.ts'
+import { useFeatures, type FeatureState } from '@/lib/features.tsx'
 import { cn } from '@/lib/utils.ts'
 import { useLang } from '@/i18n/LangProvider.tsx'
 import type { Lang } from '@/i18n/content.ts'
@@ -8,6 +9,7 @@ import { useTheme, type Theme } from '@/hooks/useTheme.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Separator } from '@/components/ui/separator.tsx'
 import { checkForUpdates, type UpdateCheckResult } from '@/lib/updates.ts'
+import { Switch } from '@/components/ui/switch.tsx'
 import {
   Dialog,
   DialogContent,
@@ -75,9 +77,19 @@ export function SettingsDialog({
 }) {
   const { t, lang, setLang } = useLang()
   const { theme, setTheme } = useTheme()
+  const { features, toggle } = useFeatures()
   const [version, setVersion] = useState<string | null>(null)
   const [update, setUpdate] = useState<UpdateCheckResult['update']>(null)
   const fetched = useRef(false)
+  /** 只展示 canToggle 的功能；toggle 失败静默回滚（registry refresh 已处理） */
+  const pluginFeatures = features
+  const handleToggle = async (f: FeatureState, enabled: boolean) => {
+    try {
+      await toggle(f.id, enabled)
+    } catch {
+      // 失败时 Provider 已重新拉取权威状态，这里无需额外处理
+    }
+  }
 
   // 打开时拉一次服务端版本（/api/health 公开端点）。成功后缓存，失败下次打开重试。
   useEffect(() => {
@@ -135,6 +147,41 @@ export function SettingsDialog({
                 ]}
               />
             </Row>
+          </section>
+
+          <Separator />
+
+          {/* ---- 插件（L2 内置功能开关，服务端 feature registry 驱动） ---- */}
+          <section className="space-y-3">
+            <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+              <Puzzle className="size-3.5" />
+              {t.settings.plugins}
+            </h3>
+            {pluginFeatures === null ? (
+              <p className="text-muted-foreground text-xs">{t.settings.pluginsLoading}</p>
+            ) : (
+              <div className="space-y-3">
+                {pluginFeatures.map((f) => (
+                  <div key={f.id} className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm leading-tight">{f.name}</p>
+                      <p className="text-muted-foreground mt-0.5 text-xs leading-snug">{f.desc}</p>
+                    </div>
+                    {f.canToggle ? (
+                      <Switch
+                        checked={f.enabled}
+                        onChange={(e) => void handleToggle(f, e.target.checked)}
+                      />
+                    ) : (
+                      <Badge variant="secondary" className="shrink-0">{t.settings.pluginsCore}</Badge>
+                    )}
+                  </div>
+                ))}
+                <p className="text-muted-foreground/70 text-[11px] leading-snug">
+                  {t.settings.pluginsHint}
+                </p>
+              </div>
+            )}
           </section>
 
           <Separator />

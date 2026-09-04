@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
 import { api, UnauthorizedError, type VaultMeta } from '@/lib/api.ts'
+import { FeaturesProvider, useFeatures, useSyncGlobalFeatures } from '@/lib/features.tsx'
 import { AppShell } from '@/components/AppShell.tsx'
 import { HomePage } from '@/pages/HomePage.tsx'
 import { VaultPage } from '@/pages/VaultPage.tsx'
@@ -11,6 +12,7 @@ import { SecurityPage } from '@/pages/SecurityPage.tsx'
 import { LoginPage } from '@/pages/LoginPage.tsx'
 import { SharedFilePage } from '@/pages/SharedFilePage.tsx'
 import { useVaultEvents } from '@/hooks/useVaultEvents.ts'
+import { useLang } from '@/i18n/LangProvider.tsx'
 
 /** 侧边栏需要的 vault 列表，全局共享一份（创建/删除后刷新） */
 export function useVaults(authed: boolean) {
@@ -37,6 +39,9 @@ export function useVaults(authed: boolean) {
  * 顶层走 data router：文章页才能用 useBlocker 拦住应用内跳转。
  * 分享页单独一条路由，访客不进管理外壳、不探测登录。
  * 管理端路由全部声明在树上，避免 path:'*' 把子路径切掉。
+ *
+ * L2 插件化：路由静态声明不变，FeatureGate 在渲染时按 registry 门禁——
+ * feature 关闭时该路由渲染 404（等价于路由不存在），SSE 事件驱动即时切换。
  */
 const router = createBrowserRouter([
   { path: '/share/:token', Component: SharedFilePage },
@@ -46,7 +51,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, Component: HomeRoute },
       { path: 'apikeys', Component: ApiKeysRoute },
-      { path: 'security', Component: SecurityPage },
+      { path: 'security', Component: SecurityRoute },
       { path: 'vaults/:vid', Component: VaultRoute },
       { path: 'vaults/:vid/settings', Component: VaultSettingsRoute },
       { path: 'vaults/:vid/files/:id', Component: FileViewPage },
@@ -56,7 +61,35 @@ const router = createBrowserRouter([
 ])
 
 export function App() {
-  return <RouterProvider router={router} />
+  return (
+    <FeaturesProvider>
+      <RouterProvider router={router} />
+    </FeaturesProvider>
+  )
+}
+
+/**
+ * FeatureGate：feature 关闭时渲染 404 页（等价路由不存在）。
+ * registry 未加载完成时放行（老服务端兼容），权威 gating 在服务端。
+ */
+function FeatureGate({ id, children }: { id: string; children: ReactNode }) {
+  const { isEnabled } = useFeatures()
+  const { t } = useLang()
+  if (!isEnabled(id)) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-muted-foreground">
+        <p className="text-sm font-medium">{t.featureDisabled.title}</p>
+        <p className="text-xs">{t.featureDisabled.hint}</p>
+      </div>
+    )
+  }
+  return <>{children}</>
+}
+
+/** 管理端外壳内同步模块级 feature 副本（FeatureGate 之外的场景用） */
+function FeatureSync() {
+  useSyncGlobalFeatures()
+  return null
 }
 
 /** 管理端（需登录）：原有的探测 + 外壳 + 路由 */
@@ -139,6 +172,7 @@ function AdminApp() {
         syncProgress,
       }}
     >
+      <FeatureSync />
       <AppShell
         vaults={vaults ?? []}
         onRefresh={refreshVaults}
@@ -181,6 +215,19 @@ function HomeRoute() {
 }
 
 function ApiKeysRoute() {
+  return (
+    <FeatureGate id="apikeys">
+      <ApiKeysPageWrapper />
+    </FeatureGate>
+  )
+}
+
+function SecurityRoute() {
+  return <SecurityPage />
+}
+
+/** ApiKeysPage 需要 vaults，经 AdminCtx 取 */
+function ApiKeysPageWrapper() {
   const { vaults } = useAdmin()
   return <ApiKeysPage vaults={vaults} />
 }

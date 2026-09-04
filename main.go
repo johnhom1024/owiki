@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"owiki/internal/events"
+	"owiki/internal/feature"
 	"owiki/internal/hub"
 	owikimcp "owiki/internal/mcp"
 	"owiki/internal/openapi"
@@ -79,6 +80,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("init share db: %v", err)
 	}
+	// feature 开关持久化（settings 表）+ 启动加载用户值
+	settingRepo, err := repository.NewSettingRepo(repo.DB())
+	if err != nil {
+		log.Fatalf("init setting db: %v", err)
+	}
+	dbSettings, err := settingRepo.GetAll(context.Background())
+	if err != nil {
+		log.Fatalf("load settings: %v", err)
+	}
+	for id, on := range feature.Use().LoadSettings(dbSettings, os.Getenv) {
+		log.Printf("feature %s enabled=%v", id, on)
+	}
 	// 后台定时清理过期/超量日志（30 天 + 单 vault 5000 条，每天一轮）
 	syncLogRepo.StartCleanupLoop(context.Background())
 	// 首次启动用环境变量初始化管理员（已存在则忽略）
@@ -122,10 +135,10 @@ func main() {
 	webapi.Register(apiGroup, repo, h, syncLogRepo)
 	webapi.RegisterVaultRoutes(apiGroup, vaultRepo, repo, deviceRepo, h, eventHub, attachStore, syncLogRepo, shareRepo)
 	openapi.Register(r, repo, vaultRepo, apiKeyRepo, attachStore, h, apiGroup, syncLogRepo, shareRepo)
-	// MCP：与 /openapi 共用同一套 API key；OWIKI_MCP=off 可关
-	if os.Getenv("OWIKI_MCP") != "off" {
-		owikimcp.New(repo, vaultRepo, apiKeyRepo, attachStore, deviceRepo, h, syncLogRepo, shareRepo, version).Register(r)
-	}
+	// feature 开关管理端点（需登录）：GET/PUT /api/features + SSE feature.changed
+	webapi.RegisterFeatureAPI(apiGroup, settingRepo, eventHub)
+	// MCP：与 /openapi 共用同一套 API key；运行时由 feature registry 门禁
+	owikimcp.New(repo, vaultRepo, apiKeyRepo, attachStore, deviceRepo, h, syncLogRepo, shareRepo, version).Register(r)
 	// 分享：管理端走 apiGroup（需登录），公开端直接挂 r（免登录）
 	webapi.RegisterShareRoutes(apiGroup, r, repo, shareRepo, attachStore)
 

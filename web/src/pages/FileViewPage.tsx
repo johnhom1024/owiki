@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type UIEve
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { BookOpen, ChevronLeft, Columns2, Pencil } from 'lucide-react'
 import { api, ConflictError, type FileDetail, type FileMeta } from '@/lib/api.ts'
+import { useFeatures } from '@/lib/features.tsx'
 import { NoteReadingView } from '@/components/NoteReadingView.tsx'
 import { ShareButton } from '@/components/ShareButton.tsx'
 import { useLang } from '@/i18n/LangProvider.tsx'
@@ -32,6 +33,7 @@ function draftKey(fileId: number) {
 export function FileViewPage() {
   const { vid, id } = useParams()
   const { t } = useLang()
+  const { isEnabled: featureEnabled } = useFeatures()
   const navigate = useNavigate()
   const fileId = Number(id)
 
@@ -359,7 +361,7 @@ export function FileViewPage() {
                 <Columns2 className="size-3.5" />
               </ViewBtn>
             </div>
-            {file && view === 'reading' && <ShareButton fileId={file.id} />}
+            {file && view === 'reading' && featureEnabled('share') && <ShareButton fileId={file.id} />}
             {view === 'reading' && (
               <Button size="sm" onClick={() => setView('source')}>
                 <Pencil /> {t.fileView.edit}

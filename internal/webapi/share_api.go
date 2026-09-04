@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"owiki/internal/feature"
 	"owiki/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,10 @@ func RegisterShareRoutes(api *gin.RouterGroup, r *gin.Engine, repo *repository.N
 	// ---------- 管理端：当前笔记的分享状态 ----------
 
 	api.GET("/files/:id/share", func(c *gin.Context) {
+		if !feature.Use().Enabled("share") {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "feature disabled: share"})
+			return
+		}
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -58,6 +63,10 @@ func RegisterShareRoutes(api *gin.RouterGroup, r *gin.Engine, repo *repository.N
 
 	// 管理端：开关分享（body: {"enabled": true/false}）
 	api.PUT("/files/:id/share", func(c *gin.Context) {
+		if !feature.Use().Enabled("share") {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "feature disabled: share"})
+			return
+		}
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -94,9 +103,12 @@ func RegisterShareRoutes(api *gin.RouterGroup, r *gin.Engine, repo *repository.N
 	})
 
 	// ---------- 公开端：分享页数据（免登录） ----------
+	// feature 门禁：总开关关闭时整个 /api/share/* 立即 404
+	// （已发出的链接失效；重新开启后 token 不变、链接复活）
+	pub := r.Group("/api/share", feature.Require("share"))
 
 	// 分享页需要的最小元信息 + 正文（与登录态 FileDetail 同构，前端复用渲染组件）
-	r.GET("/api/share/:token", func(c *gin.Context) {
+	pub.GET("/:token", func(c *gin.Context) {
 		if !validShareToken(c.Param("token")) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid share token"})
 			return
@@ -136,7 +148,7 @@ func RegisterShareRoutes(api *gin.RouterGroup, r *gin.Engine, repo *repository.N
 	// 公开端：分享页附件（图片等）。
 	// 与登录态附件接口的差别只有鉴权——这里凭 share token + 笔记确实引用该附件放行，
 	// 沿用 notes 表登记制（不开放任意路径读取）。
-	r.GET("/api/share/:token/attachments/*path", func(c *gin.Context) {
+	pub.GET("/:token/attachments/*path", func(c *gin.Context) {
 		if !validShareToken(c.Param("token")) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid share token"})
 			return

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"owiki/internal/events"
+	"owiki/internal/feature"
 	"owiki/internal/hub"
 	"owiki/internal/proto"
 	"owiki/internal/repository"
@@ -366,7 +367,12 @@ func RegisterVaultRoutes(api *gin.RouterGroup, vaultRepo *repository.VaultRepo, 
 	})
 
 	// 同步日志：游标分页（新→旧）。?before=<id>&limit=&type=changes|deletes|conflicts
+	// feature 门禁：synclog 关闭时 404（设置页同步日志卡随前端 registry 隐藏）
 	api.GET("/vaults/:vid/logs", func(c *gin.Context) {
+		if !feature.Use().Enabled("synclog") {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "feature disabled: synclog"})
+			return
+		}
 		vid, err := strconv.ParseInt(c.Param("vid"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid vault id"})

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { api, type FileMeta, type VaultMeta } from '@/lib/api.ts'
+import { useFeatures } from '@/lib/features.tsx'
 import { cn } from '@/lib/utils.ts'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { CreateNoteDialog } from '@/components/CreateNoteDialog.tsx'
@@ -73,6 +74,7 @@ function SidebarBody({
   const location = useLocation()
   const navigate = useNavigate()
   const { t } = useLang()
+  const { isEnabled } = useFeatures()
 
   const [creating, setCreating] = useState(false)
   const [creatingNote, setCreatingNote] = useState(false)
@@ -259,12 +261,12 @@ function SidebarBody({
         </button>
       )}
 
-      {/* 底部导航 */}
+      {/* 底部导航：apikeys 入口按 feature registry 显隐（L2 插件化） */}
       <div className="shrink-0 border-t px-2 py-2">
         {[
-          { to: '/apikeys', icon: KeyRound, label: t.nav.apiKeys, active: location.pathname === '/apikeys' },
-          { to: '/security', icon: ShieldCheck, label: t.nav.security, active: location.pathname === '/security' },
-        ].map(({ to, icon: Icon, label, active }) => (
+          { to: '/apikeys', icon: KeyRound, label: t.nav.apiKeys, active: location.pathname === '/apikeys', feature: 'apikeys' as const },
+          { to: '/security', icon: ShieldCheck, label: t.nav.security, active: location.pathname === '/security', feature: null },
+        ].filter(({ feature }) => !feature || isEnabled(feature)).map(({ to, icon: Icon, label, active }) => (
           <button
             key={to}
             onClick={() => go(to)}
