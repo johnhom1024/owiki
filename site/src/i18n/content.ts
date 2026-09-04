@@ -88,6 +88,11 @@ const zh = {
         title: '笔记分享',
         desc: '任意笔记开个开关就有公开只读链接，发给朋友扫码即读；不想分享了关掉，链接立即失效。',
       },
+      {
+        icon: 'puzzle',
+        title: '功能可开关',
+        desc: '设置里像 Obsidian 一样拨插件：文章分享、同步日志、AI 接口、MCP。关掉立刻从界面消失，已发出的链接立刻失效；数据还在，重开就回来。',
+      },
     ],
   },
   architecture: {
@@ -312,6 +317,10 @@ curl -s -X POST \\
         q: '同步历史可以追溯吗？',
         a: '可以。服务端记录同步日志：每条文件新增/更新/删除/重命名/合并/冲突与设备上下线，Web 端时间线查看，保留 30 天且单 vault 上限 5000 条，自动清理。',
       },
+      {
+        q: '不想用分享 / AI 接口怎么办？',
+        a: 'Web 设置 → 插件，像 Obsidian 一样拨开关。关掉后对应入口立刻从界面消失，已发出的公开链接立刻 404；数据还在，重开就回来。不需要重启服务。',
+      },
     ],
   },
   footer: {
@@ -409,6 +418,11 @@ const en: Content = {
         icon: 'share2',
         title: 'Note sharing',
         desc: 'Flip a switch on any note for a public read-only link — send it to a friend, they scan and read. Turn it off when done and the link dies instantly.',
+      },
+      {
+        icon: 'puzzle',
+        title: 'Features you can turn off',
+        desc: 'Like Obsidian core plugins: note sharing, sync log, AI API, MCP. Flip a switch in Settings and they vanish from the UI; public links 404 immediately. Data stays; turn them back on and they return.',
       },
     ],
   },
@@ -633,6 +647,10 @@ curl -s -X POST \\
       {
         q: 'Is sync history traceable?',
         a: 'Yes. The server logs every file create/update/delete/rename/merge/conflict plus device connects — a timeline in the web console, 30-day retention with a 5000-entry per-vault cap, cleaned automatically.',
+      },
+      {
+        q: 'What if I do not want sharing or the AI API?',
+        a: 'Settings → Plugins, same idea as Obsidian core plugins. Turn a feature off and its UI vanishes immediately; public links 404 on the next request. Data stays; turn it back on and it returns. No restart.',
       },
     ],
   },

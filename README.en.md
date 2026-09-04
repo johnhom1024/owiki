@@ -37,6 +37,7 @@ Sync notes across devices · Reach your vault from any browser · Let an AI assi
 - **Conflicts never lose content** — if two devices edit the same note, mergeable changes merge automatically; the rest are saved as conflict copies — your local file is never silently overwritten
 - **Your vault on the web** — phone, work laptop, tablet: open a URL in any browser to read and edit all your notes, no Obsidian required
 - **Note sharing** — generate a public link (with QR code) to share a single note with people who don't have Obsidian
+- **Features you can turn off** — like Obsidian's core plugins: note sharing, sync log, AI API, MCP. Flip a switch in Settings and they vanish from the UI; public links 404 immediately. Data stays; turn them back on and they return
 - **Per-device authorization** — every device gets its own identity, joins via PIN, and can be unbound whenever you like
 - **Attachment sync** — images and other binary attachments sync along with your notes
 - **Open AI API** — hand your AI assistant a skill doc and an API key, and it can write, organize and search your notes for you — everything it writes lands in Obsidian instantly
@@ -127,7 +128,7 @@ The first connection reconciles automatically: remote-only files come down, loca
 | `OWIKI_ADDR` | `:8787` | Listen address |
 | `OWIKI_DB` | `owiki.db` | SQLite database path |
 | `OWIKI_ATTACH_DIR` | `<DB dir>/attachments` | Attachment storage directory |
-| `OWIKI_MCP` | (empty = on) | Set to `off` to disable the embedded MCP server (`/mcp`) |
+| `OWIKI_SHARE` / `OWIKI_SYNCLOG` / `OWIKI_APIKEYS` / `OWIKI_MCP` | (empty = on) | First-boot default for that feature; `off` starts it disabled. After you flip it in Settings → Plugins, the env var no longer wins |
 
 ## 🔌 AI access
 
