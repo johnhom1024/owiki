@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Copy, KeyRound, Plus, Trash2 } from 'lucide-react'
 import { api, type ApiKeyMeta, type VaultMeta } from '@/lib/api.ts'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
+import { copyText } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Card } from '@/components/ui/card.tsx'
@@ -98,8 +99,10 @@ export function ApiKeysPage({ vaults }: { vaults: VaultMeta[] | null }) {
               variant="outline"
               size="sm"
               onClick={() => {
-                void navigator.clipboard.writeText(freshKey)
-                setFreshKey(null)
+                void (async () => {
+                  await copyText(freshKey)
+                  setFreshKey(null)
+                })()
               }}
             >
               <Copy /> {t.apiKeys.copyAndClose}

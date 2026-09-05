@@ -15,6 +15,7 @@ import {
 import { api, type VaultDetail, type VaultDevice, type VaultTokenInfo } from '@/lib/api.ts'
 import { useFeatures } from '@/lib/features.tsx'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
+import { copyText } from '@/lib/utils.ts'
 import { SyncLogCard } from '@/components/SyncLogCard.tsx'
 import { GitBackupCard } from '@/components/GitBackupCard.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
@@ -213,12 +214,10 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
 
   /** 复制设备 ID 到剪贴板，短暂显示已复制状态 */
   const copyDeviceId = async (deviceId: string) => {
-    try {
-      await navigator.clipboard.writeText(deviceId)
+    const ok = await copyText(deviceId)
+    if (ok) {
       setCopiedDeviceId(deviceId)
       setTimeout(() => setCopiedDeviceId(null), 1500)
-    } catch {
-      // 剪贴板不可用（非 https/权限拒绝）时静默失败
     }
   }
 

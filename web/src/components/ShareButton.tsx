@@ -4,7 +4,7 @@ import QRCode from 'qrcode'
 import { Check, Copy, Link2, QrCode, Share2 } from 'lucide-react'
 import { api } from '@/lib/api.ts'
 import { useLang } from '@/i18n/LangProvider.tsx'
-import { cn } from '@/lib/utils.ts'
+import { cn, copyText } from '@/lib/utils.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 
@@ -116,12 +116,11 @@ export function ShareButton({ fileId }: { fileId: number }) {
   }
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
+    const ok = await copyText(shareUrl)
+    if (ok) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // 剪贴板不可用（如非安全上下文）：退回选中提示
+    } else {
       setError(t.share.copyFailed)
     }
   }
