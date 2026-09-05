@@ -5,12 +5,14 @@ go 1.26.7
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
+	github.com/go-git/go-billy/v5 v5.9.0
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/google/jsonschema-go v0.4.3
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/pquerna/otp v1.5.0
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.53.0
 	gorm.io/gorm v1.31.2
 )
 
@@ -22,17 +24,15 @@ require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
-	github.com/cloudflare/circl v1.6.1 // indirect
+	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.6.2 // indirect
-	github.com/go-git/go-git/v5 v5.16.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
@@ -51,7 +51,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/pjbgf/sha1cd v0.3.2 // indirect
+	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
@@ -65,11 +65,11 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
