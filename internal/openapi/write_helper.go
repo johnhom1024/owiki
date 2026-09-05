@@ -61,7 +61,7 @@ func RenameNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 	if syncLog != nil {
 		syncLog.Record(ctx, vid, repository.ActionFileRename, from+" → "+to, actor, source, "", actor, 0)
 	}
-	broadcastNote(h, vid, "renamed", from, "")
+	broadcastRenamed(h, vid, from, to)
 	publishVaultLog(vid)
 	return nil
 }
@@ -88,11 +88,22 @@ func DeleteNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 	return nil
 }
 
-// broadcastNote 向 vault 内所有 WS 客户端广播变更通知（与 ws handler 一致的消息格式）。
+// broadcastNote 向 vault 内所有 WS 客户端广播变更通知（changed / deleted）。
 func broadcastNote(h *hub.Hub, vid int64, typ, path, hash string) {
 	if h == nil {
 		return
 	}
 	msg, _ := json.Marshal(map[string]string{"type": typ, "path": path, "hash": hash})
+	h.BroadcastVault(vid, msg, nil)
+}
+
+// broadcastRenamed 按 WS handleRename 同款格式发 {type, from, to}。
+// 不能复用 broadcastNote：插件认 from/to，path 字段会被当成 from===to 直接丢掉，
+// 实时同步就只剩对账——而对账又会把旧路径当新文件传回服务端。
+func broadcastRenamed(h *hub.Hub, vid int64, from, to string) {
+	if h == nil {
+		return
+	}
+	msg, _ := json.Marshal(map[string]string{"type": "renamed", "from": from, "to": to})
 	h.BroadcastVault(vid, msg, nil)
 }
