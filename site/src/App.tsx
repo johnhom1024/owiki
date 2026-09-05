@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { Starfield } from './components/Starfield'
@@ -12,7 +13,12 @@ import { Security } from './components/Security'
 import { Faq } from './components/Faq'
 import { Footer } from './components/Footer'
 
+const Docs = lazy(() => import('./docs/Docs').then(module => ({ default: module.Docs })))
+
 export default function App() {
+  if (/\/docs(?:\/|$)/.test(window.location.pathname)) {
+    return <Suspense fallback={<div className="p-10 text-muted" role="status">OWiki…</div>}><Docs /></Suspense>
+  }
   return (
     <div className="min-h-screen">
       <Starfield />

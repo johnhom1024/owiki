@@ -7,7 +7,7 @@ import { Logo } from './Logo'
 import { cn } from '../lib/utils'
 
 export function Header() {
-  const { t, toggle: toggleLang } = useLang()
+  const { t, toggle: toggleLang, lang } = useLang()
   const { theme, toggle: toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
@@ -24,7 +24,7 @@ export function Header() {
     { href: '#features', label: t.nav.features },
     { href: '#architecture', label: t.nav.architecture },
     { href: '#sync', label: t.nav.sync },
-    { href: '#quickstart', label: t.nav.quickstart },
+    { href: `${import.meta.env.BASE_URL}docs/?page=quickstart&lang=${lang}`, label: lang === 'en' ? 'Docs' : '使用文档' },
     { href: '#openapi', label: t.nav.openapi },
     { href: '#security', label: t.nav.security },
     { href: '#faq', label: t.nav.faq },
@@ -43,7 +43,7 @@ export function Header() {
           <span className="text-lg font-semibold tracking-tight">OWiki</span>
         </a>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav className="hidden items-center gap-5 xl:flex">
           {links.map((l) => (
             <a
               key={l.href}
@@ -89,7 +89,7 @@ export function Header() {
             {t.nav.source}
           </a>
           <button
-            className="text-muted md:hidden"
+            className="text-muted xl:hidden"
             onClick={() => setOpen((v) => !v)}
             aria-label="menu"
           >
@@ -99,7 +99,7 @@ export function Header() {
       </div>
 
       {open && (
-        <nav className="glass border-t border-line px-5 py-4 md:hidden">
+        <nav className="glass border-t border-line px-5 py-4 xl:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) => (
               <a

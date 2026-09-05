@@ -23,13 +23,18 @@ function PluginScreenshot() {
 }
 
 export function QuickStart() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
 
   return (
     <section id="quickstart" className="py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-5">
         <SectionHeading title={t.quickstart.title} subtitle={t.quickstart.subtitle} />
 
+        <div className="mt-6 text-center">
+          <a href={`${import.meta.env.BASE_URL}docs/?page=quickstart&lang=${lang}`} className="text-sm text-brand-soft underline decoration-brand/40 underline-offset-4 hover:decoration-brand">
+            {lang === 'en' ? 'Read the full setup guide →' : '阅读完整上手指南 →'}
+          </a>
+        </div>
         <div className="mt-14 space-y-10">
           {t.quickstart.steps.map((step, i) => (
             <div key={step.title} className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">

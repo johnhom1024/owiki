@@ -4,7 +4,7 @@ import { REPO_URL } from '../i18n/content'
 import { SpotlightCard } from './SpotlightCard'
 
 export function Hero() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
 
   return (
     <section id="top" className="relative overflow-hidden pt-32 pb-20 md:pt-40 md:pb-28">
@@ -31,7 +31,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <a
-              href="#quickstart"
+              href={`${import.meta.env.BASE_URL}docs/?page=quickstart&lang=${lang}`}
               className="group inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/30 transition-all hover:bg-brand-strong hover:shadow-brand/50"
             >
               {t.hero.ctaPrimary}

@@ -77,7 +77,7 @@ const zh = {
       {
         icon: 'shieldCheck',
         title: '设备级授权',
-        desc: '每台设备独立身份，新设备凭 PIN 授权接入，不想要了随时解绑。共用 iCloud 库也不会串号。',
+        desc: '每台设备独立身份，通过笔记库同步令牌接入，设备列表统一管理。同步令牌请像密码一样妥善保管。',
       },
       {
         icon: 'bot',
@@ -139,22 +139,19 @@ const zh = {
   },
   quickstart: {
     title: '三步跑起来',
-    subtitle: '一个容器或一个二进制，数据只是一个 SQLite 文件',
+    subtitle: '推荐 Docker / Docker Compose，开发者也可从源码启动',
     steps: [
       {
         title: '启动服务端',
-        desc: 'Docker 一条命令，或下载单二进制直接跑。Web 管理端已内嵌，浏览器打开 http://localhost:8787 即可使用。',
+        desc: '推荐 Docker 或 Docker Compose。先替换示例中的管理员密码，Compose 保存为 docker-compose.yaml 后执行 docker compose up -d。启动后打开 http://localhost:8787；源码开发请用本地开发入口。',
         tabs: [
           {
             name: 'Docker',
             lang: 'bash',
             code: `docker run -d --name owiki \\
   -p 8787:8787 \\
-  -e OWIKI_ADDR=':8787' \\
-  -e OWIKI_DB=/data/owiki.db \\
-  -e OWIKI_TOKEN=<同步令牌> \\
-  -e OWIKI_ADMIN_USER=admin \\
-  -e OWIKI_ADMIN_PASSWORD=<强密码> \\
+  --restart unless-stopped \\
+  -e OWIKI_ADMIN_PASSWORD='替换为你的强密码' \\
   -v ./owiki-data:/data \\
   johnhom1024/owiki:latest`,
           },
@@ -167,27 +164,25 @@ const zh = {
     ports:
       - '8787:8787'
     environment:
-      OWIKI_DB: /data/owiki.db
-      OWIKI_ADDR: ':8787'
-      OWIKI_TOKEN: \${OWIKI_TOKEN}
-      OWIKI_ADMIN_USER: admin
-      OWIKI_ADMIN_PASSWORD: \${OWIKI_ADMIN_PASSWORD}
+      OWIKI_ADMIN_PASSWORD: 'replace-with-your-strong-password'
     volumes:
-      - ./data:/data
+      - ./owiki-data:/data
     restart: unless-stopped`,
           },
           {
-            name: '二进制',
+            name: '本地开发',
             lang: 'bash',
             code: `git clone https://github.com/johnhom1024/owiki
 cd owiki
-make run   # :8787，默认 token: dev-token-change-me`,
+cp .env.example .env
+# 编辑 .env，修改 OWIKI_ADMIN_PASSWORD 后再启动
+make dev   # 前端 :5174，后端 :8787`,
           },
         ],
       },
       {
         title: '创建 Vault 并授权',
-        desc: 'Web 管理端登录后创建 vault，生成同步令牌与设备 PIN；设备列表、同步日志都在同一个设置页里。',
+        desc: 'Web 管理端登录后创建 vault，复制同步令牌，或使用一键授权链接配置 Obsidian 插件；连接后设备自动登记。',
       },
       {
         title: '安装 Obsidian 插件',
@@ -281,7 +276,7 @@ curl -s -X POST \\
       {
         icon: 'database',
         title: '明文 SQLite 单文件',
-        desc: '所有笔记就是一个 owiki.db，随时备份、迁移、用任意工具读取，不锁任何私有格式。',
+        desc: '笔记保存在 owiki.db，附件独立存储；备份与迁移时一起保存数据库和附件目录，不锁任何私有格式。',
       },
       {
         icon: 'eyeOff',
@@ -409,7 +404,7 @@ const en: Content = {
       {
         icon: 'shieldCheck',
         title: 'Per-device authorization',
-        desc: 'Every device has its own identity, joins via PIN, and can be unbound whenever you like. Even iCloud-shared vaults never mix up their devices.',
+        desc: 'Every device has its own identity and connects with a vault sync token. Manage devices in the web console, and protect sync tokens like passwords.',
       },
       {
         icon: 'bot',
@@ -471,22 +466,19 @@ const en: Content = {
   },
   quickstart: {
     title: 'Up in three steps',
-    subtitle: 'One container or one binary — your data is a single SQLite file',
+    subtitle: 'Docker / Docker Compose recommended, with a separate source development path',
     steps: [
       {
         title: 'Start the server',
-        desc: 'One docker command, or grab the single binary. The web console is embedded — open http://localhost:8787 and you are in.',
+        desc: 'Use Docker or Docker Compose. Replace the sample admin password first; for Compose, save docker-compose.yaml and run docker compose up -d. Open http://localhost:8787 after startup. Use the Development tab for source changes.',
         tabs: [
           {
             name: 'Docker',
             lang: 'bash',
             code: `docker run -d --name owiki \\
   -p 8787:8787 \\
-  -e OWIKI_ADDR=':8787' \\
-  -e OWIKI_DB=/data/owiki.db \\
-  -e OWIKI_TOKEN=<sync-token> \\
-  -e OWIKI_ADMIN_USER=admin \\
-  -e OWIKI_ADMIN_PASSWORD=<strong-password> \\
+  --restart unless-stopped \\
+  -e OWIKI_ADMIN_PASSWORD='replace-with-your-strong-password' \\
   -v ./owiki-data:/data \\
   johnhom1024/owiki:latest`,
           },
@@ -499,27 +491,25 @@ const en: Content = {
     ports:
       - '8787:8787'
     environment:
-      OWIKI_DB: /data/owiki.db
-      OWIKI_ADDR: ':8787'
-      OWIKI_TOKEN: \${OWIKI_TOKEN}
-      OWIKI_ADMIN_USER: admin
-      OWIKI_ADMIN_PASSWORD: \${OWIKI_ADMIN_PASSWORD}
+      OWIKI_ADMIN_PASSWORD: 'replace-with-your-strong-password'
     volumes:
-      - ./data:/data
+      - ./owiki-data:/data
     restart: unless-stopped`,
           },
           {
-            name: 'Binary',
+            name: 'Development',
             lang: 'bash',
             code: `git clone https://github.com/johnhom1024/owiki
 cd owiki
-make run   # :8787, default token: dev-token-change-me`,
+cp .env.example .env
+# Edit .env and change OWIKI_ADMIN_PASSWORD before starting
+make dev   # Frontend :5174, backend :8787`,
           },
         ],
       },
       {
         title: 'Create a vault & authorize',
-        desc: 'Log into the web console, create a vault, and generate the sync token and device PIN. Devices and sync logs live on the same settings page.',
+        desc: 'Log into the web console, create a vault, then copy its sync token or use the one-click authorization link to configure Obsidian. Devices register automatically on connection.',
       },
       {
         title: 'Install the Obsidian plugin',
@@ -613,7 +603,7 @@ curl -s -X POST \\
       {
         icon: 'database',
         title: 'Plain SQLite, one file',
-        desc: 'All notes live in a single owiki.db — back it up, migrate it, read it with any tool. No proprietary formats.',
+        desc: 'Notes live in owiki.db; attachments are stored separately. Back up and migrate both the database and attachment directory. No proprietary formats.',
       },
       {
         icon: 'eyeOff',
