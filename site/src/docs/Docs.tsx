@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Copy, Github, Info, Menu, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Copy, Github, Info, Menu, Moon, Search, Sun } from 'lucide-react'
 import { useLang } from '@/i18n/LangProvider'
+import { useTheme } from '@/i18n/ThemeProvider'
 import { REPO_URL } from '@/i18n/content'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ function CodeBlock({ language, value, en }: { language: string; value: string; e
 
 export function Docs() {
   const { lang, toggle, setLang } = useLang()
+  const { theme, toggle: toggleTheme } = useTheme()
   const en = lang === 'en'
   const pages = docs[lang]
   const [slug, setSlug] = useState(readSlug)
@@ -114,7 +116,7 @@ export function Docs() {
     <header className="sticky top-0 z-40 border-b border-line bg-page/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-5 lg:px-8">
         <div className="flex items-center gap-4"><a href={`${base}?lang=${lang}`} className="flex items-center gap-2.5" aria-label="OWiki"><Logo className="size-8" /><span className="text-lg font-semibold tracking-tight">OWiki</span></a><span className="hidden h-5 w-px bg-line sm:block" /><span className="hidden text-sm text-muted sm:block">{label}</span></div>
-        <div className="flex items-center gap-1 sm:gap-3"><Button asChild variant="ghost" className="hidden sm:inline-flex"><a href={`${base}?lang=${lang}`}><ArrowLeft />{en ? 'Home' : '返回首页'}</a></Button><Button variant="ghost" onClick={toggle}>{en ? '中文' : 'English'}</Button><Button asChild variant="outline" size="icon"><a href={REPO_URL} target="_blank" rel="noreferrer" aria-label="GitHub"><Github /></a></Button></div>
+        <div className="flex items-center gap-1 sm:gap-3"><Button asChild variant="ghost" className="hidden sm:inline-flex"><a href={`${base}?lang=${lang}`}><ArrowLeft />{en ? 'Home' : '返回首页'}</a></Button><Button variant="ghost" onClick={toggle}>{en ? '中文' : 'English'}</Button><Button variant="outline" size="icon" onClick={toggleTheme} aria-label={en ? 'Switch theme' : '切换主题'} title={en ? 'Switch theme' : '切换主题'}>{theme === 'dark' ? <Sun /> : <Moon />}</Button><Button asChild variant="outline" size="icon"><a href={REPO_URL} target="_blank" rel="noreferrer" aria-label="GitHub"><Github /></a></Button></div>
       </div>
     </header>
     <div className="sticky top-16 z-30 border-b border-line bg-page px-5 py-2 lg:hidden">
