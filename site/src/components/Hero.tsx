@@ -86,7 +86,7 @@ function HeroDemo() {
             d="M80 90 C 160 90 160 150 200 150"
             className="flow-line"
             fill="none"
-            stroke="#8b5cf6"
+            stroke="var(--c-brand)"
             strokeWidth="1.5"
             opacity="0.7"
           />
@@ -94,7 +94,7 @@ function HeroDemo() {
             d="M320 90 C 240 90 240 150 200 150"
             className="flow-line"
             fill="none"
-            stroke="#8b5cf6"
+            stroke="var(--c-brand)"
             strokeWidth="1.5"
             opacity="0.7"
           />
@@ -102,47 +102,47 @@ function HeroDemo() {
             d="M200 150 L200 235"
             className="flow-line"
             fill="none"
-            stroke="#7dd3fc"
+            stroke="var(--c-sky)"
             strokeWidth="1.5"
             opacity="0.7"
           />
 
           {/* Mac */}
           <g className="animate-float">
-            <rect x="30" y="42" width="100" height="62" rx="10" fill="#191627" stroke="#2a2542" />
-            <rect x="40" y="52" width="80" height="34" rx="4" fill="#0a0910" />
+            <rect x="30" y="42" width="100" height="62" rx="10" fill="var(--c-surface-2)" stroke="var(--c-line)" />
+            <rect x="40" y="52" width="80" height="34" rx="4" fill="var(--c-svg-screen)" />
             <LaptopIcon />
-            <text x="80" y="119" textAnchor="middle" fill="#a29bc0" fontSize="10">
+            <text x="80" y="119" textAnchor="middle" fill="var(--c-svg-label)" fontSize="10">
               {t.hero.demo.mac}
             </text>
-            <circle cx="118" cy="52" r="5" fill="#4ade80" opacity="0.9" />
+            <circle cx="118" cy="52" r="5" fill="var(--c-mint)" opacity="0.9" />
           </g>
 
           {/* Phone */}
           <g className="animate-float-slow">
-            <rect x="270" y="42" width="100" height="62" rx="10" fill="#191627" stroke="#2a2542" />
-            <rect x="302" y="50" width="36" height="46" rx="6" fill="#0a0910" />
-            <text x="320" y="119" textAnchor="middle" fill="#a29bc0" fontSize="10">
+            <rect x="270" y="42" width="100" height="62" rx="10" fill="var(--c-surface-2)" stroke="var(--c-line)" />
+            <rect x="302" y="50" width="36" height="46" rx="6" fill="var(--c-svg-screen)" />
+            <text x="320" y="119" textAnchor="middle" fill="var(--c-svg-label)" fontSize="10">
               {t.hero.demo.phone}
             </text>
-            <circle cx="358" cy="52" r="5" fill="#4ade80" opacity="0.9" />
+            <circle cx="358" cy="52" r="5" fill="var(--c-mint)" opacity="0.9" />
           </g>
 
           {/* Server */}
           <g>
-            <rect x="140" y="118" width="120" height="64" rx="10" fill="#191627" stroke="#8b5cf6" strokeOpacity="0.5" />
+            <rect x="140" y="118" width="120" height="64" rx="10" fill="var(--c-surface-2)" stroke="var(--c-brand)" strokeOpacity="0.5" />
             <ServerIcon />
-            <text x="200" y="202" textAnchor="middle" fill="#c4b5fd" fontSize="10">
+            <text x="200" y="202" textAnchor="middle" fill="var(--c-brand-soft)" fontSize="10">
               {t.hero.demo.nas}
             </text>
           </g>
 
           {/* 日志流 */}
           <g fontSize="10" fontFamily="ui-monospace, monospace">
-            <LogRow y={228} color="#a29bc0" text={t.hero.demo.saved} />
-            <LogRow y={246} color="#7dd3fc" text={t.hero.demo.reconcile} />
-            <LogRow y={264} color="#8b5cf6" text={t.hero.demo.broadcast} />
-            <LogRow y={282} color="#4ade80" text={t.hero.demo.merged} />
+            <LogRow y={228} color="var(--c-svg-label)" text={t.hero.demo.saved} />
+            <LogRow y={246} color="var(--c-sky)" text={t.hero.demo.reconcile} />
+            <LogRow y={264} color="var(--c-brand)" text={t.hero.demo.broadcast} />
+            <LogRow y={282} color="var(--c-mint)" text={t.hero.demo.merged} />
           </g>
         </svg>
 
@@ -158,8 +158,8 @@ function HeroDemo() {
 function LaptopIcon() {
   return (
     <g transform="translate(68, 60)">
-      <rect x="0" y="0" width="24" height="16" rx="2.5" fill="none" stroke="#a29bc0" strokeWidth="1.5" />
-      <path d="M-3 19 L27 19" stroke="#a29bc0" strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="0" y="0" width="24" height="16" rx="2.5" fill="none" stroke="var(--c-svg-label)" strokeWidth="1.5" />
+      <path d="M-3 19 L27 19" stroke="var(--c-svg-label)" strokeWidth="1.5" strokeLinecap="round" />
     </g>
   )
 }
@@ -167,12 +167,12 @@ function LaptopIcon() {
 function ServerIcon() {
   return (
     <g transform="translate(172, 130)">
-      <rect x="0" y="0" width="56" height="12" rx="3" fill="#12101c" stroke="#8b5cf6" strokeWidth="1" />
-      <rect x="0" y="17" width="56" height="12" rx="3" fill="#12101c" stroke="#8b5cf6" strokeWidth="1" />
-      <circle cx="7" cy="6" r="1.6" fill="#4ade80" />
-      <circle cx="7" cy="23" r="1.6" fill="#4ade80" />
-      <rect x="16" y="4.5" width="30" height="3" rx="1.5" fill="#2a2542" />
-      <rect x="16" y="21.5" width="30" height="3" rx="1.5" fill="#2a2542" />
+      <rect x="0" y="0" width="56" height="12" rx="3" fill="var(--c-surface)" stroke="var(--c-brand)" strokeWidth="1" />
+      <rect x="0" y="17" width="56" height="12" rx="3" fill="var(--c-surface)" stroke="var(--c-brand)" strokeWidth="1" />
+      <circle cx="7" cy="6" r="1.6" fill="var(--c-mint)" />
+      <circle cx="7" cy="23" r="1.6" fill="var(--c-mint)" />
+      <rect x="16" y="4.5" width="30" height="3" rx="1.5" fill="var(--c-line)" />
+      <rect x="16" y="21.5" width="30" height="3" rx="1.5" fill="var(--c-line)" />
     </g>
   )
 }
@@ -180,7 +180,7 @@ function ServerIcon() {
 function LogRow({ y, color, text }: { y: number; color: string; text: string }) {
   return (
     <g>
-      <rect x="30" y={y - 10} width="340" height="15" rx="4" fill="#12101c" />
+      <rect x="30" y={y - 10} width="340" height="15" rx="4" fill="var(--c-surface)" />
       <circle cx="38" cy={y - 2.5} r="2" fill={color} />
       <text x="47" y={y} fill={color} opacity="0.9">
         {text}

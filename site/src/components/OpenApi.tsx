@@ -46,7 +46,7 @@ export function OpenApi() {
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-line bg-[#0d0b16]">
+          <div className="code-panel overflow-hidden rounded-2xl border border-line bg-surface-code">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <h3 className="text-sm font-semibold">{t.openapi.codeTitle}</h3>
               <CopyButton text={t.openapi.code} />

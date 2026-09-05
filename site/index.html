@@ -11,12 +11,18 @@
     <meta name="theme-color" content="#7c3aed" />
     <title>OWiki — 自部署 Obsidian 笔记同步</title>
     <script>
-      // 首屏语言初始化（避免闪烁）：默认中文，?lang=en 切英文
+      // 首屏语言 + 主题初始化（避免闪烁）：默认中文/暗色，?lang=en 切英文
       (function () {
         var lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('owiki-site-lang') || 'zh'
         if (lang !== 'zh' && lang !== 'en') lang = 'zh'
         localStorage.setItem('owiki-site-lang', lang)
         document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN'
+
+        var theme = localStorage.getItem('owiki-site-theme')
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        }
+        document.documentElement.dataset.theme = theme
       })()
     </script>
   </head>

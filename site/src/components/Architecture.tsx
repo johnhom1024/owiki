@@ -156,32 +156,32 @@ export function Architecture() {
       <style>{`
 .owiki-arch {
   --bg: transparent;
-  --grid: #211d36;
-  --text: var(--color-ink, #eceaf6);
-  --text-muted: var(--color-muted, #a29bc0);
-  --text-dim: var(--color-faint, #6f6890);
-  --text-faint: var(--color-faint, #6f6890);
-  --panel: rgba(18, 16, 28, 0.5);
-  --panel-border: #2a2542;
-  --lane-fill: rgba(25, 22, 39, 0.22);
-  --lane-stroke: #2a2542;
-  --mask: #12101c;
-  --arrow: #6f6890;
-  --arrow-emphasis: #4ade80;
-  --frontend-fill: rgba(125, 211, 252, 0.10);
-  --frontend-stroke: #7dd3fc;
-  --backend-fill: rgba(139, 92, 246, 0.12);
-  --backend-stroke: #8b5cf6;
-  --database-fill: rgba(196, 181, 253, 0.08);
-  --database-stroke: #c4b5fd;
-  --external-fill: rgba(162, 155, 192, 0.08);
-  --external-stroke: #a29bc0;
-  --cloud-fill: rgba(251, 191, 36, 0.06);
-  --cloud-stroke: #fbbf24;
-  --security-fill: rgba(251, 113, 133, 0.10);
-  --security-stroke: #fb7185;
-  --messagebus-fill: rgba(251, 146, 60, 0.08);
-  --messagebus-stroke: #fb923c;
+  --grid: var(--c-arch-grid);
+  --text: var(--c-ink);
+  --text-muted: var(--c-muted);
+  --text-dim: var(--c-faint);
+  --text-faint: var(--c-faint);
+  --panel: var(--c-arch-panel);
+  --panel-border: var(--c-arch-panel-border);
+  --lane-fill: var(--c-arch-lane-fill);
+  --lane-stroke: var(--c-arch-lane-stroke);
+  --mask: var(--c-arch-mask);
+  --arrow: var(--c-faint);
+  --arrow-emphasis: var(--c-mint);
+  --frontend-fill: var(--c-arch-frontend-fill);
+  --frontend-stroke: var(--c-arch-frontend-stroke);
+  --backend-fill: var(--c-arch-backend-fill);
+  --backend-stroke: var(--c-arch-backend-stroke);
+  --database-fill: var(--c-arch-database-fill);
+  --database-stroke: var(--c-arch-database-stroke);
+  --external-fill: var(--c-arch-external-fill);
+  --external-stroke: var(--c-arch-external-stroke);
+  --cloud-fill: var(--c-arch-cloud-fill);
+  --cloud-stroke: var(--c-arch-cloud-stroke);
+  --security-fill: var(--c-arch-security-fill);
+  --security-stroke: var(--c-arch-security-stroke);
+  --messagebus-fill: var(--c-arch-messagebus-fill);
+  --messagebus-stroke: var(--c-arch-messagebus-stroke);
 }
 .owiki-arch .c-grid { stroke: var(--grid); fill: none; }
 .owiki-arch .c-mask { fill: var(--mask); stroke: none; }
@@ -189,7 +189,7 @@ export function Architecture() {
 .owiki-arch .c-backend { fill: var(--backend-fill); stroke: var(--backend-stroke); }
 .owiki-arch .c-database { fill: var(--database-fill); stroke: var(--database-stroke); }
 .owiki-arch .c-external { fill: var(--external-fill); stroke: var(--external-stroke); }
-.owiki-arch .c-region { fill: rgba(251, 191, 36, 0.05); stroke: var(--cloud-stroke); stroke-dasharray: 8,4; }
+.owiki-arch .c-region { fill: var(--cloud-fill); stroke: var(--cloud-stroke); stroke-dasharray: 8,4; }
 .owiki-arch .t-primary { fill: var(--text); }
 .owiki-arch .t-muted { fill: var(--text-muted); }
 .owiki-arch .t-frontend { fill: var(--frontend-stroke); }

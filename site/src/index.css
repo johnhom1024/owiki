@@ -1,25 +1,165 @@
 @import "tailwindcss";
 
-@theme {
-  /* OWiki 暗紫设计系统 */
+/* ============================================================
+   OWiki 设计系统：运行时主题变量
+   - 语义工具类（bg-page / text-ink / border-line ...）经
+     @theme inline 引用下面的 --c-* 变量，切主题时只换
+     :root[data-theme] 上的值，工具类本身零改动。
+   - 暗色为默认（品牌原本的设计），亮色为映射后的浅色调。
+   ============================================================ */
+
+:root,
+:root[data-theme='dark'] {
+  --c-page: #08070d;
+  --c-surface: #100e19;
+  --c-surface-2: #171425;
+  --c-surface-code: #0d0b16;
+  --c-line: #2a2542;
+  --c-line-soft: #211d36;
+  --c-ink: #eceaf6;
+  --c-muted: #a29bc0;
+  --c-faint: #6f6890;
+  --c-brand: #8b5cf6;
+  --c-brand-strong: #7c3aed;
+  --c-brand-deep: #6d28d9;
+  --c-brand-soft: #c4b5fd;
+  --c-mint: #4ade80;
+  --c-sky: #7dd3fc;
+  --c-amber: #fbbf24;
+  --c-rose: #fb7185;
+  --c-orange: #fb923c;
+  --c-scroll-thumb: #2a2542;
+  --c-scroll-track: #0a0910;
+  --c-glass: rgba(18, 16, 28, 0.72);
+  --c-header-ink: #eceaf6;
+  --c-plate: #17131f;
+  --c-on-brand: #ffffff;
+  --c-hero-a-glow: rgba(124, 58, 237, 0.22);
+  --c-hero-b-glow: rgba(139, 92, 246, 0.10);
+  --c-shadow-tint: rgba(124, 58, 237, 0.45);
+  --c-grid-line: rgba(139, 92, 246, 0.07);
+  --c-spot-1: rgba(196, 181, 253, 0.85);
+  --c-spot-2: rgba(139, 92, 246, 0.08);
+  /* Hero 大标题渐变：忠实还原原版（尾点 #6366f1 靛蓝不在调色板内，独占变量） */
+  --c-gradient-from: #c4b5fd;
+  --c-gradient-mid: #8b5cf6;
+  --c-gradient-to: #6366f1;
+  --c-shadow-card: rgba(124, 58, 237, 0.45);
+  --c-shadow-img: rgba(0, 0, 0, 0.30);
+  --c-shadow-tint: rgba(0, 0, 0, 0.25);
+  /* Hero SVG 插画 */
+  --c-svg-screen: #0a0910;
+  --c-svg-label: #a29bc0;
+  --c-svg-text: #eceaf6;
+  /* 架构图（Architecture） */
+  --c-arch-grid: #211d36;
+  --c-arch-panel: rgba(18, 16, 28, 0.5);
+  --c-arch-panel-border: #2a2542;
+  --c-arch-lane-fill: rgba(25, 22, 39, 0.22);
+  --c-arch-lane-stroke: #2a2542;
+  --c-arch-mask: #12101c;
+  --c-arch-frontend-fill: rgba(125, 211, 252, 0.10);
+  --c-arch-frontend-stroke: #7dd3fc;
+  --c-arch-backend-fill: rgba(139, 92, 246, 0.12);
+  --c-arch-backend-stroke: #8b5cf6;
+  --c-arch-database-fill: rgba(196, 181, 253, 0.08);
+  --c-arch-database-stroke: #c4b5fd;
+  --c-arch-external-fill: rgba(162, 155, 192, 0.08);
+  --c-arch-external-stroke: #a29bc0;
+  --c-arch-cloud-fill: rgba(251, 191, 36, 0.05);
+  --c-arch-cloud-stroke: #fbbf24;
+  --c-arch-security-fill: rgba(251, 113, 133, 0.10);
+  --c-arch-security-stroke: #fb7185;
+  --c-arch-messagebus-fill: rgba(251, 146, 60, 0.08);
+  --c-arch-messagebus-stroke: #fb923c;
+}
+
+:root[data-theme='light'] {
+  --c-page: #fafafc;
+  --c-surface: #ffffff;
+  --c-surface-2: #f4f2fb;
+  /* 代码块保持深色终端风（亮色页面上的对比锚点） */
+  --c-surface-code: #14121f;
+  --c-line: #e4e1f0;
+  --c-line-soft: #ecebf4;
+  --c-ink: #221e33;
+  --c-muted: #5d5680;
+  --c-faint: #8b85a3;
+  --c-brand: #7c3aed;
+  --c-brand-strong: #6d28d9;
+  --c-brand-deep: #5b21b6;
+  --c-brand-soft: #6d28d9;
+  --c-mint: #16a34a;
+  --c-sky: #0284c7;
+  --c-amber: #b45309;
+  --c-rose: #e11d48;
+  --c-orange: #ea580c;
+  --c-scroll-thumb: #d5d1e5;
+  --c-scroll-track: #fafafc;
+  --c-glass: rgba(255, 255, 255, 0.78);
+  --c-header-ink: #221e33;
+  --c-plate: #f4f2fb;
+  --c-on-brand: #ffffff;
+  --c-hero-a-glow: rgba(124, 58, 237, 0.10);
+  --c-hero-b-glow: rgba(139, 92, 246, 0.05);
+  --c-shadow-tint: rgba(109, 40, 217, 0.20);
+  --c-grid-line: rgba(109, 40, 217, 0.07);
+  --c-spot-1: rgba(124, 58, 237, 0.55);
+  --c-spot-2: rgba(139, 92, 246, 0.05);
+  --c-gradient-from: #6d28d9;
+  --c-gradient-mid: #8b5cf6;
+  --c-gradient-to: #5b21b6;
+  --c-shadow-card: rgba(109, 40, 217, 0.20);
+  --c-shadow-img: rgba(109, 40, 217, 0.15);
+  --c-shadow-tint: rgba(60, 40, 120, 0.18);
+  /* Hero SVG 插画：亮色下面板走浅灰、屏幕保持深色 */
+  --c-svg-screen: #1c1826;
+  --c-svg-label: #5d5680;
+  --c-svg-text: #221e33;
+  /* 架构图（Architecture）：亮色下提高填充不透明度、加深描边 */
+  --c-arch-grid: #ece9f5;
+  --c-arch-panel: rgba(255, 255, 255, 0.6);
+  --c-arch-panel-border: #d8d3e8;
+  --c-arch-lane-fill: rgba(244, 242, 251, 0.6);
+  --c-arch-lane-stroke: #d8d3e8;
+  --c-arch-mask: #ffffff;
+  --c-arch-frontend-fill: rgba(2, 132, 199, 0.07);
+  --c-arch-frontend-stroke: #0284c7;
+  --c-arch-backend-fill: rgba(109, 40, 217, 0.08);
+  --c-arch-backend-stroke: #7c3aed;
+  --c-arch-database-fill: rgba(109, 40, 217, 0.05);
+  --c-arch-database-stroke: #6d28d9;
+  --c-arch-external-fill: rgba(93, 86, 128, 0.06);
+  --c-arch-external-stroke: #5d5680;
+  --c-arch-cloud-fill: rgba(180, 83, 9, 0.05);
+  --c-arch-cloud-stroke: #b45309;
+  --c-arch-security-fill: rgba(225, 29, 72, 0.07);
+  --c-arch-security-stroke: #e11d48;
+  --c-arch-messagebus-fill: rgba(234, 88, 12, 0.06);
+  --c-arch-messagebus-stroke: #ea580c;
+}
+
+@theme inline {
   /* 注意：不能定义 --color-base —— 会与 text-base（字号）工具类冲突， */
   /* Tailwind v4 里 text-base 会变成 color: var(--color-base) 导致文字变黑 */
-  --color-page: #0a0910;
-  --color-surface: #12101c;
-  --color-surface-2: #191627;
-  --color-line: #2a2542;
-  --color-line-soft: #211d36;
-  --color-ink: #eceaf6;
-  --color-muted: #a29bc0;
-  --color-faint: #6f6890;
-  --color-brand: #8b5cf6;
-  --color-brand-strong: #7c3aed;
-  --color-brand-deep: #6d28d9;
-  --color-brand-soft: #c4b5fd;
-  --color-mint: #4ade80;
-  --color-sky: #7dd3fc;
-  --color-amber: #fbbf24;
-  --color-rose: #fb7185;
+  --color-page: var(--c-page);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-surface-code: var(--c-surface-code);
+  --color-line: var(--c-line);
+  --color-line-soft: var(--c-line-soft);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-brand: var(--c-brand);
+  --color-brand-strong: var(--c-brand-strong);
+  --color-brand-deep: var(--c-brand-deep);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-mint: var(--c-mint);
+  --color-sky: var(--c-sky);
+  --color-amber: var(--c-amber);
+  --color-rose: var(--c-rose);
+  --color-orange: var(--c-orange);
 
   --font-sans:
     "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro SC",
@@ -54,10 +194,8 @@ html {
 body {
   @apply bg-page text-ink antialiased;
   font-family: var(--font-sans);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.22), transparent),
-    radial-gradient(ellipse 50% 40% at 85% 15%, rgba(139, 92, 246, 0.1), transparent);
-  background-attachment: fixed;
+  /* 天空光晕由 Starfield canvas 的星云负责，body 不再叠静态渐变 */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 ::selection {
@@ -70,9 +208,9 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2542;
+  background: var(--c-scroll-thumb);
   border-radius: 8px;
-  border: 2px solid #0a0910;
+  border: 2px solid var(--c-scroll-track);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -81,14 +219,14 @@ body {
 /* ---------- 自定义工具类 ---------- */
 
 .text-gradient {
-  background: linear-gradient(100deg, #c4b5fd 0%, #8b5cf6 45%, #6366f1 100%);
+  background: linear-gradient(100deg, var(--c-gradient-from) 0%, var(--c-gradient-mid) 45%, var(--c-gradient-to) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .glass {
-  background: rgba(18, 16, 28, 0.72);
+  background: var(--c-glass);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
@@ -105,13 +243,13 @@ body {
   border-color: rgba(139, 92, 246, 0.45);
   box-shadow:
     0 0 0 1px rgba(139, 92, 246, 0.18),
-    0 18px 50px -18px rgba(124, 58, 237, 0.45);
+    0 18px 50px -18px var(--c-shadow-tint);
 }
 
 .hero-grid {
   background-image:
-    linear-gradient(rgba(139, 92, 246, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 92, 246, 0.07) 1px, transparent 1px);
+    linear-gradient(var(--c-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-line) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(ellipse 75% 70% at 50% 40%, black 30%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 40%, black 30%, transparent 75%);
@@ -136,7 +274,7 @@ body {
   padding: 1px;
   background: radial-gradient(
     340px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(196, 181, 253, 0.85),
+    var(--c-spot-1),
     rgba(139, 92, 246, 0.3) 40%,
     transparent 65%
   );
@@ -156,7 +294,7 @@ body {
   border-radius: inherit;
   background: radial-gradient(
     460px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(139, 92, 246, 0.08),
+    var(--c-spot-2),
     transparent 45%
   );
   opacity: 0;
@@ -175,6 +313,24 @@ body {
 
 .chip {
   @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2/60 px-3 py-1 text-xs text-muted;
+}
+
+/* 代码块 / 终端窗口：两个主题下都保持深色终端风。
+   作用域内把语义变量固定为深底适配值，内部 text-ink 等
+   工具类无需改动即可保证对比度。 */
+.code-panel {
+  --c-surface: #12101c;
+  --c-surface-2: #191627;
+  --c-line: #2a2542;
+  --c-line-soft: #211d36;
+  --c-ink: #eceaf6;
+  --c-muted: #a29bc0;
+  --c-faint: #6f6890;
+  --c-mint: #4ade80;
+  --c-sky: #7dd3fc;
+  --c-amber: #fbbf24;
+  --c-brand-soft: #c4b5fd;
+  color: #eceaf6;
 }
 
 section[id] {

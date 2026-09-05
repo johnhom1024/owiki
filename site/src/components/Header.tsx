@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Github, Menu, Sparkles, X } from 'lucide-react'
+import { Github, Menu, Moon, Sparkles, Sun, X } from 'lucide-react'
 import { useLang } from '../i18n/LangProvider'
+import { useTheme } from '../i18n/ThemeProvider'
 import { REPO_URL, SKILL_RAW_URL } from '../i18n/content'
 import { Logo } from './Logo'
 import { cn } from '../lib/utils'
 
 export function Header() {
-  const { t, toggle } = useLang()
+  const { t, toggle: toggleLang } = useLang()
+  const { theme, toggle: toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -64,10 +66,18 @@ export function Header() {
             {t.nav.skill}
           </a>
           <button
-            onClick={toggle}
+            onClick={toggleLang}
             className="rounded-full border border-line bg-surface-2/60 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-brand/50 hover:text-ink"
           >
             {t.nav.langToggle}
+          </button>
+          <button
+            onClick={toggleTheme}
+            aria-label={t.nav.themeToggle}
+            title={t.nav.themeToggle}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface-2/60 text-muted transition-colors hover:border-brand/50 hover:text-ink"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
           <a
             href={REPO_URL}

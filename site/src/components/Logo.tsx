@@ -18,7 +18,7 @@ export function Logo({ className, withPlate = true }: { className?: string; with
           <stop offset="100%" stopColor="#7c3aed" />
         </linearGradient>
       </defs>
-      {withPlate && <rect width="64" height="64" rx="14" fill="#17131f" />}
+      {withPlate && <rect width="64" height="64" rx="14" fill="var(--c-plate)" />}
       {/* 晶体主体：垂直腰线版，顶部切面收小，中轴线略偏左 */}
       <path d="M32 8 L46 18 L46 46 L32 56 L18 46 L18 18 Z" fill="url(#owiki-site-logo-bg)" />
       {/* 左上切面：受光面 */}

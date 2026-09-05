@@ -9,7 +9,7 @@ function PluginScreenshot() {
   const { lang } = useLang()
   const zh = lang === 'zh'
   return (
-    <figure className="overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-xl shadow-black/20">
+    <figure className="overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-xl shadow-[var(--c-shadow-img)]">
       <img
         src={`${import.meta.env.BASE_URL}screenshots/${zh ? 'plugin-settings-zh.jpg' : 'plugin-settings-en.jpg'}`}
         alt={zh ? 'OWiki Sync 插件设置页' : 'OWiki Sync plugin settings'}
@@ -73,7 +73,7 @@ interface Tab {
 function CodeTabs({ tabs }: { tabs: Tab[] }) {
   const [active, setActive] = useState(0)
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-[#0d0b16]">
+    <div className="code-panel overflow-hidden rounded-2xl border border-line bg-surface-code">
       <div className="flex items-center justify-between border-b border-line px-3 pt-2">
         <div className="flex">
           {tabs.map((tab, i) => (

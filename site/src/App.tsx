@@ -1,5 +1,6 @@
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
+import { Starfield } from './components/Starfield'
 import { Wiki } from './components/Wiki'
 import { Features } from './components/Features'
 import { Architecture } from './components/Architecture'
@@ -14,6 +15,7 @@ import { Footer } from './components/Footer'
 export default function App() {
   return (
     <div className="min-h-screen">
+      <Starfield />
       <Header />
       <main>
         <Hero />

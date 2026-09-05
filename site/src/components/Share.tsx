@@ -39,7 +39,7 @@ export function Share() {
           </div>
 
           {/* 右：分享面板截图（跟随语言） */}
-          <figure className="card-glow overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-2xl shadow-black/25">
+          <figure className="card-glow overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-2xl shadow-[var(--c-shadow-img)]">
             <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />

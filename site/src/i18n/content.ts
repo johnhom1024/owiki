@@ -22,6 +22,7 @@ const zh = {
     skill: 'Skill',
     source: '源码',
     langToggle: 'EN',
+    themeToggle: 'Switch theme',
   },
   hero: {
     badge: '开源 · MIT License',
@@ -353,6 +354,7 @@ const en: Content = {
     skill: 'Skill',
     source: 'Source',
     langToggle: '中文',
+    themeToggle: '切换主题',
   },
   hero: {
     badge: 'Open source · MIT License',
