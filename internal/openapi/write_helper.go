@@ -5,12 +5,26 @@ import (
 	"encoding/json"
 	"errors"
 
+	"owiki/internal/events"
 	"owiki/internal/hub"
 	"owiki/internal/repository"
 	"owiki/internal/service"
 )
 
-// WriteNote openapi 与 mcp 共享的写路径：Save + sync_log 留痕 + WS 广播。
+// eventHubRef 写入后的 SSE 广播（vault.log）。Register 时注入；
+// gitbackup 等事件订阅者据此触发备份。
+var eventHubRef *events.Hub
+
+// SetEventHub 注入事件总线（main 装配时调用）。
+func SetEventHub(h *events.Hub) { eventHubRef = h }
+
+func publishVaultLog(vid int64) {
+	if eventHubRef != nil {
+		eventHubRef.Publish(events.Event{Type: "vault.log", VaultID: vid})
+	}
+}
+
+// WriteNote openapi 与 mcp 共享的写路径：Save + sync_log 留痕 + WS 广播 + SSE 事件。
 // source 传 "openapi" 或 "mcp"（sync_log 来源），actor 传展示名（如 "API Key"/"MCP Client"）。
 func WriteNote(ctx context.Context, repo *repository.NoteRepo, syncLog *repository.SyncLogRepo, h *hub.Hub,
 	vid int64, path, content, baseHash string, force bool, source, actor string) (*service.SaveResult, error) {
@@ -31,6 +45,7 @@ func WriteNote(ctx context.Context, repo *repository.NoteRepo, syncLog *reposito
 		syncLog.Record(ctx, vid, action, path, actor, source, "", actor, int64(len(res.Note.Content)))
 	}
 	broadcastNote(h, vid, "changed", path, res.Note.ContentHash)
+	publishVaultLog(vid)
 	return res, nil
 }
 
@@ -47,6 +62,7 @@ func RenameNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 		syncLog.Record(ctx, vid, repository.ActionFileRename, from+" → "+to, actor, source, "", actor, 0)
 	}
 	broadcastNote(h, vid, "renamed", from, "")
+	publishVaultLog(vid)
 	return nil
 }
 
@@ -68,6 +84,7 @@ func DeleteNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 		syncLog.Record(ctx, vid, repository.ActionFileDelete, path, actor, source, "", actor, 0)
 	}
 	broadcastNote(h, vid, "deleted", path, "")
+	publishVaultLog(vid)
 	return nil
 }
 

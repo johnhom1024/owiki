@@ -11,6 +11,7 @@ import (
 
 	"owiki/internal/events"
 	"owiki/internal/feature"
+	"owiki/internal/gitbackup"
 	"owiki/internal/hub"
 	owikimcp "owiki/internal/mcp"
 	"owiki/internal/openapi"
@@ -35,6 +36,10 @@ var version = "dev"
 func main() {
 	// 本地开发便利：若存在 .env 则加载（不覆盖已设置的系统环境变量；生产容器里通常没有此文件）
 	_ = godotenv.Load()
+
+	// 根 context：进程生命周期（gitbackup 事件循环等后台任务挂它）
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	dbPath := envOr("OWIKI_DB", "owiki.db")
 	token := envOr("OWIKI_TOKEN", "dev-token-change-me")
@@ -114,6 +119,18 @@ func main() {
 	eventHub := events.NewHub()
 	wsServer := ws.NewServer(h, repo, vaultRepo, deviceRepo, eventHub, attachStore, syncLogRepo, shareRepo)
 
+	// git 备份（L2 内置插件）：每 vault 一个物化工作树 <data>/gitbackup/<vaultID>/
+	gitBackupRoot := envOr("OWIKI_GITBACKUP_DIR", filepath.Join(filepath.Dir(dbPath), "gitbackup"))
+	gitBackupRepo, err := repository.NewGitBackupRepo(repo.DB())
+	if err != nil {
+		log.Fatalf("init git backup db: %v", err)
+	}
+	gitRunner, err := gitbackup.NewRunner(repo, attachStore, gitBackupRoot)
+	if err != nil {
+		log.Fatalf("init git backup runner: %v", err)
+	}
+	gitMgr := gitbackup.NewManager(gitBackupRepo, gitRunner, eventHub, syncLogRepo)
+
 	r := gin.Default()
 
 	// health 公开（只暴露连接数与版本，登录页检查服务状态用）
@@ -133,8 +150,13 @@ func main() {
 	apiGroup.Use(webapi.AdminAuthMiddleware(adminRepo))
 	webapi.RegisterTotpAdminRoutes(apiGroup, adminRepo)
 	webapi.Register(apiGroup, repo, h, syncLogRepo)
+	webapi.SetEventHub(eventHub)
 	webapi.RegisterVaultRoutes(apiGroup, vaultRepo, repo, deviceRepo, h, eventHub, attachStore, syncLogRepo, shareRepo)
 	openapi.Register(r, repo, vaultRepo, apiKeyRepo, attachStore, h, apiGroup, syncLogRepo, shareRepo)
+	openapi.SetEventHub(eventHub)
+	// git 备份：vault 级配置 API + Manager 联动（vault 删除时清理）
+	webapi.GitBackupMgr = gitMgr
+	webapi.RegisterGitBackupRoutes(apiGroup, gitBackupRepo, gitMgr, vaultRepo, eventHub)
 	// feature 开关管理端点（需登录）：GET/PUT /api/features + SSE feature.changed
 	webapi.RegisterFeatureAPI(apiGroup, settingRepo, eventHub)
 	// MCP：与 /openapi 共用同一套 API key；运行时由 feature registry 门禁
@@ -167,6 +189,11 @@ func main() {
 		}
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	})
+
+	// git 备份：Manager 起步（feature 总开关开启时为 enabled vault 起 worker）
+	// + 事件订阅循环（写入事件 → 防抖触发）
+	gitMgr.Start(rootCtx)
+	gitMgr.StartEventLoop(rootCtx)
 
 	log.Printf("owiki listening on %s (db=%s)", addr, dbPath)
 	if err := r.Run(addr); err != nil {

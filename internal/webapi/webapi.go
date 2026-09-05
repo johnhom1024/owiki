@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"owiki/internal/events"
 	"owiki/internal/hub"
 	"owiki/internal/proto"
 	"owiki/internal/repository"
@@ -14,6 +15,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// eventHubRef Web 端编辑写入后的 SSE 广播（vault.log）。Register 时注入。
+var eventHubRef *events.Hub
+
+// SetEventHub 注入事件总线（main 装配时调用；老调用方不设则不广播）。
+func SetEventHub(h *events.Hub) { eventHubRef = h }
 
 // Register 兼容旧的全局 /api/files（跨 vault，按 id 操作并标注 vaultId）。
 // 新代码请用 /api/vaults/:vid/files（vault_api.go）。
@@ -108,6 +115,10 @@ func Register(api *gin.RouterGroup, repo *repository.NoteRepo, h *hub.Hub, syncL
 				action = repository.ActionFileCreate
 			}
 			syncLog.Record(c.Request.Context(), exist.VaultID, action, exist.Path, "Web 端编辑", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)))
+		}
+		// SSE：同步日志时间线实时刷新 + gitbackup 等事件订阅者触发
+		if eventHubRef != nil {
+			eventHubRef.Publish(events.Event{Type: "vault.log", VaultID: exist.VaultID})
 		}
 		c.JSON(http.StatusOK, gin.H{"data": res.Note, "merged": res.Merged})
 	})

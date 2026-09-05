@@ -125,19 +125,45 @@ func (r *Registry) LoadSettings(dbValues map[string]string, env func(string) str
 
 // SetEnabled 运行时改开关。CanToggle=false 的功能拒绝（返回 false）。
 // 持久化到 settings 表由调用方完成（repo 与 feature 包解耦）。
+// 成功后通知 StateListener（如 gitbackup Manager 起停 worker）。
 func (r *Registry) SetEnabled(id string, on bool) bool {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	d, ok := r.features[id]
 	if !ok || !d.CanToggle {
+		r.mu.Unlock()
 		return false
 	}
 	r.enabled[id] = on
+	r.mu.Unlock()
+	notifyListeners(id, on)
 	return true
 }
 
 // SettingKey feature id → settings 表键。
 func SettingKey(id string) string { return "feature." + id + ".enabled" }
+
+// StateListener feature 开关变化回调（Manager 订阅 gitbackup 总开关用）。
+type StateListener func(id string, enabled bool)
+
+// listeners 开关变化监听者。SetEnabled 成功后逐个回调（同步调用，回调内不要再锁 Registry）。
+var listeners []StateListener
+
+// RegisterStateListener 注册开关变化监听者（进程生命周期内有效）。
+func RegisterStateListener(l StateListener) {
+	globalMu.Lock()
+	listeners = append(listeners, l)
+	globalMu.Unlock()
+}
+
+func notifyListeners(id string, enabled bool) {
+	globalMu.RLock()
+	ls := make([]StateListener, len(listeners))
+	copy(ls, listeners)
+	globalMu.RUnlock()
+	for _, l := range ls {
+		l(id, enabled)
+	}
+}
 
 // Require gin 中间件：feature 关闭时直接 404。挂在功能路由组上。
 //

@@ -12,6 +12,7 @@ import (
 
 	"owiki/internal/events"
 	"owiki/internal/feature"
+	"owiki/internal/gitbackup"
 	"owiki/internal/hub"
 	"owiki/internal/proto"
 	"owiki/internal/repository"
@@ -38,6 +39,9 @@ func syncStateMessage(vaultName string, singleDevice, enabled bool) string {
 	}
 	return "vault「" + vaultName + "」已开启单设备同步，本设备未被选中：连接保持，但文件变更不会同步。可在 OWiki Web 管理端更换选定设备"
 }
+
+// GitBackupMgr vault 删除时的联动清理入口（main 装配后设入；测试可为 nil）。
+var GitBackupMgr *gitbackup.Manager
 
 // RegisterVaultRoutes vault 管理 + vault 作用域的文件 API。
 // api 传入的是已挂登录中间件的 /api 组。
@@ -254,6 +258,11 @@ func RegisterVaultRoutes(api *gin.RouterGroup, vaultRepo *repository.VaultRepo, 
 		_ = deviceRepo.DeleteByVault(c.Request.Context(), vid)
 		_ = syncLog.DeleteByVault(c.Request.Context(), vid)
 		_ = shareRepo.DeleteByVault(c.Request.Context(), vid)
+		// git 备份联动清理：停 worker + 删配置 + 删工作树。
+		// GitBackupMgr 由 RegisterVaultRoutes 的可选 setter 注入（测试装配可为 nil）。
+		if GitBackupMgr != nil {
+			GitBackupMgr.OnVaultDeleted(vid)
+		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 

@@ -144,6 +144,22 @@ export interface SharedFileDetail {
   updatedAt: string
 }
 
+/** Git 远程备份配置（vault 级；token 服务端回掩码） */
+export interface GitBackupConfig {
+  vaultId: number
+  remoteUrl: string
+  branch: string
+  /** 掩码或空串；PUT 时传明文写入，留空 = 保持不变 */
+  token: string
+  debounceSec: number
+  enabled: boolean
+  lastCommitSha: string
+  lastPushAt: string | null
+  lastRunAt: string | null
+  lastError: string
+  status: string
+}
+
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (res.status === 401) throw new UnauthorizedError()
@@ -256,6 +272,22 @@ export const api = {
   /** 按路径解析文件元数据（首页「最近动态」跳转详情用） */
   resolveVaultFile: (vid: number, path: string) =>
     get<{ data: FileMeta }>(`/api/vaults/${vid}/resolve?path=${encodeURIComponent(path)}`),
+
+  // ---------- Git 远程备份（vault 级） ----------
+  getGitBackup: (vid: number) => get<{ data: GitBackupConfig }>(`/api/vaults/${vid}/git-backup`),
+  /** 保存配置；token 留空 = 保持不变（服务端不回明文） */
+  setGitBackup: (
+    vid: number,
+    body: {
+      remoteUrl?: string
+      branch?: string
+      token?: string
+      debounceSec?: number
+      enabled?: boolean
+    },
+  ) => send<{ data: GitBackupConfig }>(`/api/vaults/${vid}/git-backup`, 'PUT', body),
+  /** 立即备份一轮（跳过防抖） */
+  runGitBackup: (vid: number) => send<{ ok: boolean }>(`/api/vaults/${vid}/git-backup/run`, 'POST'),
 
   // ---------- 文件读写（跨 vault 的旧接口，按 id） ----------
   listFiles: () => get<{ data: FileMeta[]; total: number }>('/api/files'),

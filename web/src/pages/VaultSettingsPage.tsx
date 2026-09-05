@@ -16,6 +16,7 @@ import { api, type VaultDetail, type VaultDevice, type VaultTokenInfo } from '@/
 import { useFeatures } from '@/lib/features.tsx'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { SyncLogCard } from '@/components/SyncLogCard.tsx'
+import { GitBackupCard } from '@/components/GitBackupCard.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { Input } from '@/components/ui/input.tsx'
@@ -523,6 +524,11 @@ export function VaultSettingsPage({ refreshTick, logRefreshTicks, onRefresh }: V
           </div>
         </CardContent>
       </Card>
+
+      {/* Git 远程备份：vault 级配置（gitbackup feature 关闭时隐藏） */}
+      {featureEnabled('gitbackup') && (
+        <GitBackupCard vaultId={vaultId} refreshTick={logRefreshTicks?.[vaultId] ?? 0} />
+      )}
 
       {/* 同步日志：新增/更新/删除/冲突的时间线，SSE 实时刷新（synclog feature 关闭时隐藏） */}
       {featureEnabled('synclog') && (
