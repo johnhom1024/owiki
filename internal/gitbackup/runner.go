@@ -88,6 +88,17 @@ func (s *Runner) Run(ctx context.Context, cfg *model.VaultGitBackup) (*RunResult
 		}
 	}
 
+	// 1.5) 远程非空时的基底对接：把远程目标分支 fetch 下来并设为本地祖先。
+	// 场景：用户在 GitHub 建仓时勾了 README/.gitignore，首推即 non-fast-forward。
+	// 策略：本地还没有任何 commit 时，直接把远程分支 fetch 进来当基底（历史保留，
+	// 之后物化提交在它之上，push 永远 fast-forward）；本地已有 commit 但与远程
+	// 无共同祖先（远程被重建过）时，报错交人工处理——绝不 force push 覆盖远程。
+	if cfg.RemoteURL != "" {
+		if err := s.adoptRemoteBase(ctx, repo, cfg); err != nil {
+			return nil, err
+		}
+	}
+
 	// 2) 物化：按 DB 全量对账工作树
 	files, err := s.materialize(ctx, cfg.VaultID, wtDir)
 	if err != nil {
@@ -134,6 +145,85 @@ func (s *Runner) Run(ctx context.Context, cfg *model.VaultGitBackup) (*RunResult
 	}
 	res.Pushed = true
 	return res, nil
+}
+
+// adoptRemoteBase 远程非空时的基底对接（见 Run 步骤 1.5 的注释）。
+// 幂等：只在工作树仓库没有任何 commit 时 fetch 并合入基底；之后轮次直接跳过。
+func (s *Runner) adoptRemoteBase(ctx context.Context, repo *git.Repository, cfg *model.VaultGitBackup) error {
+	// 空仓库判据：HEAD 解析不出 commit（刚 init，refs/heads/<branch> 还不存在）。
+	// 注意不能用 headShortSHA——它对空仓库返回 ("", nil)，err 恒为 nil 会误判。
+	if _, err := repo.Head(); err == nil {
+		return nil // 本地已有 commit：基底已定，永不改写
+	}
+
+	remoteRef := fmt.Sprintf("refs/heads/%s", cfg.Branch)
+	base, err := fetchRemoteRef(ctx, repo, cfg, remoteRef)
+	if err != nil {
+		return fmt.Errorf("fetch remote base: %w", err)
+	}
+	if base == "" {
+		return nil // 远程是空仓库：无需基底
+	}
+
+	// 把远程 HEAD 设为本地分支指向（祖先），物化的变更会在其上提交
+	if err := repo.Storer.SetReference(plumbing.NewReferenceFromStrings(
+		"refs/heads/"+cfg.Branch, base,
+	)); err != nil {
+		return fmt.Errorf("set base branch: %w", err)
+	}
+	// HEAD 保持指向本地分支；checkout 基底内容到工作树（不产生新 commit）
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("worktree: %w", err)
+	}
+	if err := wt.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(cfg.Branch),
+		Keep:   true,
+	}); err != nil {
+		// Keep 失败（如已物化过半）退回普通 checkout：工作树是一次性缓存，可重物化
+		if err := wt.Checkout(&git.CheckoutOptions{
+			Branch: plumbing.NewBranchReferenceName(cfg.Branch),
+		}); err != nil {
+			return fmt.Errorf("checkout base: %w", err)
+		}
+	}
+	return nil
+}
+
+// fetchRemoteRef 从远程拉取目标分支，返回其 HEAD hash（远程无此分支时空串）。
+// 同时把对象存进本地对象库，供 adoptRemoteBase 设基底与后续三方对比用。
+func fetchRemoteRef(ctx context.Context, repo *git.Repository, cfg *model.VaultGitBackup, remoteRef string) (string, error) {
+	const remoteName = "origin"
+	_ = repo.DeleteRemote(remoteName)
+	if _, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: remoteName,
+		URLs: []string{cfg.RemoteURL},
+	}); err != nil {
+		return "", fmt.Errorf("create remote: %w", err)
+	}
+	var auth transport.AuthMethod
+	if cfg.Token != "" {
+		auth = &http.BasicAuth{Username: "owiki", Password: cfg.Token}
+	}
+	err := repo.FetchContext(ctx, &git.FetchOptions{
+		RemoteName: remoteName,
+		Auth:       auth,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("%s:refs/remotes/origin/%s", remoteRef, cfg.Branch)),
+		},
+	})
+	if err != nil {
+		if errors.Is(err, git.NoErrAlreadyUpToDate) || errors.Is(err, transport.ErrEmptyRemoteRepository) {
+			return "", nil // 空仓库：无基底
+		}
+		return "", err
+	}
+	ref, err := repo.Reference(plumbing.ReferenceName(
+		fmt.Sprintf("refs/remotes/origin/%s", cfg.Branch)), true)
+	if err != nil {
+		return "", nil // 远程没有目标分支：视为无基底
+	}
+	return ref.Hash().String(), nil
 }
 
 // push 推送到远程。非 fast-forward（远程被外部改动）时返回错误，绝不 force push。

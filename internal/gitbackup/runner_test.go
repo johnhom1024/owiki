@@ -6,9 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"owiki/internal/model"
 	"owiki/internal/repository"
@@ -17,6 +19,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
@@ -312,3 +315,83 @@ func TestSanitizeErr(t *testing.T) {
 type fakeErr struct{ msg string }
 
 func (e *fakeErr) Error() string { return e.msg }
+
+// 远程非空（如 GitHub 建仓勾了 README）：首次对接应把远程 commit 收为基底，
+// 物化提交在其上，push 成功且远程原历史保留。
+func TestRunnerNonEmptyRemoteAdoptsBase(t *testing.T) {
+	notes, _, runner := newTestDeps(t)
+	upsertNote(t, notes, 8, "note.md", "my note")
+
+	// 远程：普通（非 bare）仓库，带一个 README commit——模拟用户在网页建仓
+	remoteWT := filepath.Join(t.TempDir(), "seed-repo")
+	if _, err := git.PlainInitWithOptions(remoteWT, &git.PlainInitOptions{
+		InitOptions: git.InitOptions{DefaultBranch: plumbing.NewBranchReferenceName("main")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(remoteWT, "README.md"), []byte("# seeded\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w, _ := git.PlainOpen(remoteWT)
+	wt, _ := w.Worktree()
+	_, _ = wt.Add("README.md")
+	sig := &object.Signature{Name: "seeder", Email: "s@x", When: time.Now()}
+	seedCommit, err := wt.Commit("seed: README", &git.CommitOptions{Author: sig})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bare 克隆当真正的 remote（系统 git 建的 bare，收 main）
+	remoteDir := filepath.Join(t.TempDir(), "remote.git")
+	if err := os.MkdirAll(remoteDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "clone", "--bare", remoteWT, remoteDir).CombinedOutput(); err != nil {
+		t.Fatalf("bare clone: %v %s", err, out)
+	}
+
+	cfg := &model.VaultGitBackup{VaultID: 8, Branch: "main", Enabled: true, RemoteURL: "file://" + remoteDir}
+	res, err := runner.Run(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("run with non-empty remote: %v", err)
+	}
+	if !res.Committed || !res.Pushed {
+		t.Fatalf("committed=%v pushed=%v", res.Committed, res.Pushed)
+	}
+
+	// 远程验证：备份 commit 的 parent 是 seed commit（历史连续），note.md 已推上。
+	// 注意：seed 的 README.md 会被物化对账删掉——DB 是唯一真相，远程基底只提供
+	// 历史连续性（push 永远 fast-forward），不保留远程的工作树文件。README 仍
+	// 可从 seed commit 的历史里找回。
+	rr, err := git.PlainOpen(remoteDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, _ := rr.Head()
+	backupCommit, err := rr.CommitObject(head.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backupCommit.ParentHashes) != 1 || backupCommit.ParentHashes[0] != seedCommit {
+		t.Fatalf("backup commit parent = %v, want seed %s", backupCommit.ParentHashes, seedCommit)
+	}
+	tree, _ := backupCommit.Tree()
+	if _, err := tree.File("note.md"); err != nil {
+		t.Fatal("note.md should be pushed")
+	}
+	if _, err := tree.File("README.md"); err == nil {
+		t.Fatal("README.md (not in DB) should be materialized away from HEAD")
+	}
+	// 历史 里 seed commit 的 README 仍可找回
+	seedCommitObj, err := backupCommit.Parent(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedTree, err := seedCommitObj.Tree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := seedTree.File("README.md"); err != nil {
+		t.Fatal("seed README should survive in history (parent commit)")
+	}
+}
