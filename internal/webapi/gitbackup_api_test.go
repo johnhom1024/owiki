@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"owiki/internal/events"
 	"owiki/internal/feature"
+	"owiki/internal/gitbackup"
 	"owiki/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -21,15 +23,15 @@ func setupGitBackupTest(t *testing.T) (*gin.Engine, *repository.GitBackupRepo, *
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	dir := t.TempDir()
-	db, err := repository.NewNoteRepo(filepath.Join(dir, "t.db"))
+	notes, err := repository.NewNoteRepo(filepath.Join(dir, "t.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	gbRepo, err := repository.NewGitBackupRepo(db.DB())
+	gbRepo, err := repository.NewGitBackupRepo(notes.DB())
 	if err != nil {
 		t.Fatal(err)
 	}
-	vaultRepo, err := repository.NewVaultRepo(db.DB())
+	vaultRepo, err := repository.NewVaultRepo(notes.DB())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,9 +43,19 @@ func setupGitBackupTest(t *testing.T) (*gin.Engine, *repository.GitBackupRepo, *
 	feature.Use().SetEnabled("gitbackup", true)
 	t.Cleanup(func() { feature.Use().SetEnabled("gitbackup", false) })
 
+	// preflight 需要真 Runner（探测走它）
+	attach, err := repository.NewAttachStore(filepath.Join(dir, "att"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, err := gitbackup.NewRunner(notes, attach, filepath.Join(dir, "gb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := gin.New()
 	api := r.Group("/api")
-	RegisterGitBackupRoutes(api, gbRepo, nil, vaultRepo, events.NewHub())
+	RegisterGitBackupRoutes(api, gbRepo, nil, vaultRepo, events.NewHub(), runner)
 	return r, gbRepo, vaultRepo
 }
 
@@ -205,5 +217,53 @@ func TestGitBackupVaultNotFound(t *testing.T) {
 	r.ServeHTTP(w, httptest.NewRequest("GET", "/api/vaults/999/git-backup", nil))
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("unknown vault should 404, got %d", w.Code)
+	}
+}
+
+// preflight：remoteUrl 缺失 400；合法 file:// 地址返回探测结果。
+func TestGitBackupPreflight(t *testing.T) {
+	r, gbRepo, vaultRepo := setupGitBackupTest(t)
+	ctx := context.Background()
+
+	v, err := vaultRepo.Create(ctx, "pf", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 未带 remoteUrl 且未保存过配置 → 400
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/vaults/%d/git-backup/preflight", v.ID), nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("no remoteUrl: code=%d body=%s", w.Code, w.Body.String())
+	}
+
+	// 保存配置后探测：file:// 空仓库 → empty
+	if _, err := gbRepo.GetOrCreate(ctx, v.ID); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := gbRepo.GetByVault(ctx, v.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.RemoteURL = "file://" + filepath.Join(t.TempDir(), "nope.git")
+	if err := gbRepo.Save(ctx, cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	req = httptest.NewRequest("POST", fmt.Sprintf("/api/vaults/%d/git-backup/preflight", v.ID), nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("preflight: code=%d body=%s", w.Code, w.Body.String())
+	}
+	var out struct {
+		Data gitbackup.PreflightResult `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Data.Status != gitbackup.PreflightUnreachable {
+		t.Fatalf("want unreachable, got %q", out.Data.Status)
 	}
 }

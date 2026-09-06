@@ -156,7 +156,7 @@ func main() {
 	openapi.SetEventHub(eventHub)
 	// git 备份：vault 级配置 API + Manager 联动（vault 删除时清理）
 	webapi.GitBackupMgr = gitMgr
-	webapi.RegisterGitBackupRoutes(apiGroup, gitBackupRepo, gitMgr, vaultRepo, eventHub)
+	webapi.RegisterGitBackupRoutes(apiGroup, gitBackupRepo, gitMgr, vaultRepo, eventHub, gitRunner)
 	// feature 开关管理端点（需登录）：GET/PUT /api/features + SSE feature.changed
 	webapi.RegisterFeatureAPI(apiGroup, settingRepo, eventHub)
 	// MCP：与 /openapi 共用同一套 API key；运行时由 feature registry 门禁

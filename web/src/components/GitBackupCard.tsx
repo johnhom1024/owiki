@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   CloudUpload,
   GitBranch,
   GitCommitHorizontal,
+  History,
   Loader2,
   RefreshCw,
 } from 'lucide-react'
-import { api, type GitBackupConfig } from '@/lib/api.ts'
+import { api, type GitBackupConfig, type GitBackupPreflight } from '@/lib/api.ts'
 import { useLang, fill } from '@/i18n/LangProvider.tsx'
 import { Badge } from '@/components/ui/badge.tsx'
 import { Button } from '@/components/ui/button.tsx'
@@ -22,6 +24,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card.tsx'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog.tsx'
 
 interface GitBackupCardProps {
   vaultId: number
@@ -48,6 +58,9 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [probing, setProbing] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [preflight, setPreflight] = useState<GitBackupPreflight | null>(null)
   const refreshTimer = useRef<number | null>(null)
 
   const load = useCallback(async () => {
@@ -135,6 +148,35 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
     }
   }, [vaultId, load, t])
 
+  /** 开启流程：保存（不带 enabled）→ preflight 探测 → foreign 才弹确认 → save(enabled:true) */
+  const enableWithPreflight = useCallback(async (): Promise<boolean> => {
+    setProbing(true)
+    setError(null)
+    try {
+      // 先落库（token/branch 等），preflight 服务端会用已存 token 补全探测
+      if (!(await save())) return false
+      const res = await api.preflightGitBackup(vaultId, {})
+      const pf = res.data
+      if (pf.status === 'foreign') {
+        setPreflight(pf)
+        setConfirmOpen(true) // 用户确认后再真正开启
+        return false
+      }
+      if (pf.status === 'unreachable') {
+        // 不可达不拦着开启：配置已保存，让 worker 自己重试（错误会进状态行）
+        setNotice(t.gitBackup.preflightUnreachableHint)
+      } else if (pf.status === 'owiki') {
+        setNotice(t.gitBackup.preflightOwikiNotice)
+      }
+      return await save({ enabled: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.gitBackup.probeFailed)
+      return false
+    } finally {
+      setProbing(false)
+    }
+  }, [save, vaultId, t])
+
   if (!Number.isFinite(vaultId)) return null
 
   const enabled = cfg?.enabled ?? false
@@ -145,6 +187,11 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CloudUpload className="size-4" /> {t.gitBackup.title}
+          {probing && (
+            <Badge variant="secondary" className="gap-1">
+              <Loader2 className="size-3 animate-spin" /> {t.gitBackup.probing}
+            </Badge>
+          )}
           {cfg?.status === 'running' && (
             <Badge variant="secondary" className="gap-1">
               <Loader2 className="size-3 animate-spin" /> {t.gitBackup.statusRunning}
@@ -180,7 +227,7 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
           </div>
           <Switch
             checked={enabled}
-            disabled={saving || loading}
+            disabled={saving || loading || probing}
             aria-label={t.gitBackup.enable}
             onChange={async (e) => {
               const on = e.target.checked
@@ -189,7 +236,13 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
                 e.target.checked = false
                 return
               }
-              const ok = await save({ enabled: on })
+              if (on) {
+                // 开启前 preflight：探测远程，非空且陌生历史时弹确认
+                const ok = await enableWithPreflight()
+                if (!ok) e.target.checked = false
+                return
+              }
+              const ok = await save({ enabled: false })
               if (!ok) e.target.checked = !on
             }}
           />
@@ -295,6 +348,52 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
           <span>{t.gitBackup.restoreHint}</span>
         </div>
       </CardContent>
+
+      {/* 远程非空确认框：告知后果，用户确认后才开启 */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-amber-500" />
+              {t.gitBackup.preflightTitle}
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {t.gitBackup.preflightForeignDesc}
+            </DialogDescription>
+          </DialogHeader>
+          {preflight && (
+            <div className="text-muted-foreground space-y-2 rounded-md border p-3 text-xs">
+              {preflight.headShort && (
+                <div className="flex items-center gap-2">
+                  <GitCommitHorizontal className="size-3.5 shrink-0" />
+                  <span>{t.gitBackup.preflightHead}:</span>
+                  <code className="font-mono">{preflight.headShort}</code>
+                  {preflight.lastMessage && (
+                    <span className="truncate">— {preflight.lastMessage}</span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <History className="size-3.5 shrink-0" />
+                <span>{t.gitBackup.preflightKeepHistory}</span>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              {t.gitBackup.preflightCancel}
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmOpen(false)
+                void save({ enabled: true })
+              }}
+            >
+              {t.gitBackup.preflightConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

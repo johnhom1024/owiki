@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,10 +64,14 @@ type RunResult struct {
 	Files int
 }
 
-// Run 跑一轮完整备份：物化 → commit → push。
-// cfg.Enabled=false 时防御性跳过（调用方也应过滤）。
-// 返回的 error 信息不含 token（凭据只进 git 传输层）。
+// Run 跑一轮完整备份：物化 → commit（如有变更）→ push。
+// 状态干净也走 push：幂等探测远程（远程被外部改写时借机自愈）。
 func (s *Runner) Run(ctx context.Context, cfg *model.VaultGitBackup) (*RunResult, error) {
+	return s.run(ctx, cfg, true)
+}
+
+// allowRebuild=false 时分叉不再重建（防递归失控），直接报错。
+func (s *Runner) run(ctx context.Context, cfg *model.VaultGitBackup, allowRebuild bool) (*RunResult, error) {
 	wtDir := s.worktreePath(cfg.VaultID)
 
 	// 1) 打开或初始化仓库
@@ -91,8 +96,8 @@ func (s *Runner) Run(ctx context.Context, cfg *model.VaultGitBackup) (*RunResult
 	// 1.5) 远程非空时的基底对接：把远程目标分支 fetch 下来并设为本地祖先。
 	// 场景：用户在 GitHub 建仓时勾了 README/.gitignore，首推即 non-fast-forward。
 	// 策略：本地还没有任何 commit 时，直接把远程分支 fetch 进来当基底（历史保留，
-	// 之后物化提交在它之上，push 永远 fast-forward）；本地已有 commit 但与远程
-	// 无共同祖先（远程被重建过）时，报错交人工处理——绝不 force push 覆盖远程。
+	// 之后物化提交在它之上，push 永远 fast-forward）；本地已有 commit 则基底
+	// 已定、永不改写——与远程的分叉交给 push 阶段的自愈。
 	if cfg.RemoteURL != "" {
 		if err := s.adoptRemoteBase(ctx, repo, cfg); err != nil {
 			return nil, err
@@ -115,31 +120,46 @@ func (s *Runner) Run(ctx context.Context, cfg *model.VaultGitBackup) (*RunResult
 		return nil, fmt.Errorf("git add: %w", err)
 	}
 
+	res := &RunResult{Files: files}
+
 	status, err := wt.Status()
 	if err != nil {
 		return nil, fmt.Errorf("git status: %w", err)
 	}
-	if status.IsClean() {
-		// 无变更：不 commit 不 push，只更新 lastRunAt
+	if !status.IsClean() {
+		// 4) commit（有变更才提交）
+		sig := &object.Signature{Name: "owiki gitbackup", Email: "gitbackup@owiki.local", When: time.Now()}
+		commit, err := wt.Commit(commitPrefix, &git.CommitOptions{Author: sig})
+		if err != nil {
+			return nil, fmt.Errorf("git commit: %w", err)
+		}
+		res.Committed = true
+		res.CommitSHA = shortSHA(commit)
+	} else {
 		sha, _ := headShortSHA(repo)
-		return &RunResult{CommitSHA: sha}, nil
+		res.CommitSHA = sha
 	}
 
-	// 4) commit
-	sig := &object.Signature{Name: "owiki gitbackup", Email: "gitbackup@owiki.local", When: time.Now()}
-	commit, err := wt.Commit("backup: sync from owiki", &git.CommitOptions{Author: sig})
-	if err != nil {
-		return nil, fmt.Errorf("git commit: %w", err)
-	}
-
-	res := &RunResult{Committed: true, CommitSHA: shortSHA(commit), Files: files}
-
-	// 5) push（失败不回滚 commit：write-behind，下轮重试）
+	// 5) push（无论本轮是否产生新 commit：干净也推一次，幂等且探测远程）
 	if cfg.RemoteURL == "" {
 		// 未配置远程：本地 commit 保留，等配置后再推
 		return res, nil
 	}
 	if err := push(ctx, repo, cfg); err != nil {
+		// 分叉自愈：本地工作树只是缓存，与远程不同源（换了 remote / 远程被重建）
+		// 时删掉重建，以远程为基底重新物化——绝不 force push，DB 是唯一真相。
+		if errors.Is(err, errDiverged) && allowRebuild {
+			log.Printf("[gitbackup] vault=%d diverged from remote, rebuilding worktree from remote base", cfg.VaultID)
+			if rmErr := s.RemoveWorktree(cfg.VaultID); rmErr != nil {
+				return res, fmt.Errorf("rebuild cleanup: %w", rmErr)
+			}
+			res2, err2 := s.run(ctx, cfg, false) // 重建后只许成功，不再递归
+			if err2 != nil {
+				return res2, err2
+			}
+			res2.Files += res.Files
+			return res2, nil
+		}
 		res.Pushed = false
 		return res, fmt.Errorf("push: %w", err)
 	}
@@ -171,21 +191,28 @@ func (s *Runner) adoptRemoteBase(ctx context.Context, repo *git.Repository, cfg 
 	)); err != nil {
 		return fmt.Errorf("set base branch: %w", err)
 	}
-	// HEAD 保持指向本地分支；checkout 基底内容到工作树（不产生新 commit）
+	// HEAD 保持指向本地分支；checkout 基底内容到工作树。
+	// 用 Hash 直接 checkout（不用 Branch）——此刻 refs/heads/<branch> 刚被
+	// SetReference 指向基底 hash，Hash checkout 等价且绕开 go-git 对「分支
+	// 已存在」的校验差异；不传 Keep——工作树是一次性缓存，基底内容应当真实
+	// 落盘（物化对账会把 DB 外的文件清掉，但基底文件必须先进工作树才能被
+	// git 追踪为删除）。
 	wt, err := repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("worktree: %w", err)
 	}
 	if err := wt.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(cfg.Branch),
-		Keep:   true,
+		Hash:   plumbing.NewHash(base),
+		Branch: plumbing.ReferenceName(""),
+		Keep:   false,
 	}); err != nil {
-		// Keep 失败（如已物化过半）退回普通 checkout：工作树是一次性缓存，可重物化
-		if err := wt.Checkout(&git.CheckoutOptions{
-			Branch: plumbing.NewBranchReferenceName(cfg.Branch),
-		}); err != nil {
-			return fmt.Errorf("checkout base: %w", err)
-		}
+		return fmt.Errorf("checkout base: %w", err)
+	}
+	// HEAD 符号引用指回本地分支（checkout Hash 会把 HEAD 变 detached）
+	if err := repo.Storer.SetReference(plumbing.NewSymbolicReference(
+		plumbing.HEAD, plumbing.NewBranchReferenceName(cfg.Branch),
+	)); err != nil {
+		return fmt.Errorf("restore HEAD: %w", err)
 	}
 	return nil
 }
@@ -226,7 +253,7 @@ func fetchRemoteRef(ctx context.Context, repo *git.Repository, cfg *model.VaultG
 	return ref.Hash().String(), nil
 }
 
-// push 推送到远程。非 fast-forward（远程被外部改动）时返回错误，绝不 force push。
+// push 推送到远程。绝不 force push；远程领先/分叉时返回 errDiverged 交上层自愈。
 func push(ctx context.Context, repo *git.Repository, cfg *model.VaultGitBackup) error {
 	// PushContext 默认查名为 origin 的 remote 配置；不 CreateRemote 会报
 	// ErrRemoteNotFound。每次 UPSERT（URL 变了也同步）。
@@ -239,20 +266,20 @@ func push(ctx context.Context, repo *git.Repository, cfg *model.VaultGitBackup) 
 		return fmt.Errorf("create remote: %w", err)
 	}
 
-	var auth transport.AuthMethod
-	if cfg.Token != "" {
-		auth = &http.BasicAuth{Username: "owiki", Password: cfg.Token}
-	}
 	refSpec := fmt.Sprintf("refs/heads/%s:refs/heads/%s", cfg.Branch, cfg.Branch)
 	err := repo.PushContext(ctx, &git.PushOptions{
 		RemoteName:    remoteName,
-		Auth:          auth,
+		Auth:          basicAuth(cfg.Token),
 		RefSpecs:      []config.RefSpec{config.RefSpec(refSpec)},
 		Force:         false,
 	})
 	if err != nil && (errors.Is(err, git.NoErrAlreadyUpToDate) || strings.Contains(err.Error(), "already up-to-date")) {
 		// 远程已有同一 commit（重复推）：视为成功
 		return nil
+	}
+	if err != nil && strings.Contains(err.Error(), "non-fast-forward") {
+		// 远程有本地没有的 commit（分叉或被外部推进）：自愈信号
+		return errDiverged
 	}
 	return err
 }

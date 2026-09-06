@@ -20,8 +20,9 @@ import (
 //
 //	GET  /api/vaults/:vid/git-backup        查配置+状态（token 掩码）
 //	PUT  /api/vaults/:vid/git-backup        保存配置；enabled 从 false→true 时起 worker
+//	POST /api/vaults/:vid/git-backup/preflight  探测远程仓库状态（开启前确认用）
 //	POST /api/vaults/:vid/git-backup/run    立即备份一轮（跳过防抖）
-func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupRepo, mgr *gitbackup.Manager, vaultRepo *repository.VaultRepo, eventHub *events.Hub) {
+func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupRepo, mgr *gitbackup.Manager, vaultRepo *repository.VaultRepo, eventHub *events.Hub, runner *gitbackup.Runner) {
 	g := api.Group("/vaults/:vid/git-backup", feature.Require(gitbackup.FeatureID))
 
 	// vault 存在性校验（与 vault_api 的 vg 组一致）
@@ -111,6 +112,44 @@ func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupR
 			mgr.RemoveWorker(vid)
 		}
 		c.JSON(http.StatusOK, gin.H{"data": toView(b)})
+	})
+
+	// 探测远程仓库状态：开启备份前给用户看「远端是什么、接上去会发生什么」。
+	// body 可带 remoteUrl/token/branch 覆盖已存配置（还没保存就能先探测）。
+	g.POST("/preflight", func(c *gin.Context) {
+		if runner == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "gitbackup runner not ready"})
+			return
+		}
+		var body struct {
+			RemoteURL string `json:"remoteUrl"`
+			Token     string `json:"token"`
+			Branch    string `json:"branch"`
+		}
+		_ = c.ShouldBindJSON(&body) // 空 body 合法：用已存配置探测
+
+		vid := c.GetInt64("vid")
+		if b, err := gbRepo.GetByVault(c.Request.Context(), vid); err == nil {
+			if body.RemoteURL == "" {
+				body.RemoteURL = b.RemoteURL
+			}
+			if body.Token == "" {
+				body.Token = b.Token // 探测用已存 token（body 没带明文时）
+			}
+			if body.Branch == "" {
+				body.Branch = b.Branch
+			}
+		}
+		if body.RemoteURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "remoteUrl required"})
+			return
+		}
+		if err := validateRemoteURL(body.RemoteURL); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		res := runner.Preflight(c.Request.Context(), body.RemoteURL, body.Token, body.Branch)
+		c.JSON(http.StatusOK, gin.H{"data": res})
 	})
 
 	g.POST("/run", func(c *gin.Context) {

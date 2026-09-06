@@ -216,6 +216,19 @@ const zh = {
     hoursAgo: '{n} 小时前',
     remoteRequired: '请先填写远程仓库地址',
     restoreHint: '灾难恢复：git clone 下来的仓库就是一个完整的 Obsidian vault，直接用 Obsidian 打开即可',
+
+    // preflight（开启前远程探测）
+    probing: '正在探测远程仓库…',
+    probeFailed: '探测远程仓库失败',
+    preflightTitle: '远程仓库已有内容',
+    preflightForeignDesc:
+      '目标分支上已有不是 owiki 产生的 commit（如建仓时的 README）。开启后，远程现有文件会从最新版本移除（历史中仍可找回），vault 内容将作为新 commit 叠加在远程历史之上。',
+    preflightHead: '远程最新 commit',
+    preflightKeepHistory: '远程完整历史保留，绝不 force push',
+    preflightConfirm: '知道了，开启备份',
+    preflightCancel: '取消',
+    preflightOwikiNotice: '检测到之前同步过的 owiki 备份历史，将从上次的位置无缝续推',
+    preflightUnreachableHint: '无法连接远程仓库（地址/token 有误或网络不通）——已保存配置，稍后可点「立即备份」重试',
   },
 
   createVault: {
@@ -607,6 +620,20 @@ const en: typeof zh = {
     hoursAgo: '{n} h ago',
     remoteRequired: 'Fill in the remote repository URL first',
     restoreHint: 'Disaster recovery: git clone the backup repo and open it directly as an Obsidian vault',
+
+    // preflight (remote probe before enabling)
+    probing: 'Probing the remote repository…',
+    probeFailed: 'Failed to probe the remote repository',
+    preflightTitle: 'The remote repository is not empty',
+    preflightForeignDesc:
+      'The target branch already has commits not created by owiki (e.g. an auto-generated README). After enabling, existing remote files will be removed from the latest snapshot (still recoverable in history), and your vault will be committed on top of the remote history.',
+    preflightHead: 'Latest remote commit',
+    preflightKeepHistory: 'Full remote history is preserved — never force push',
+    preflightConfirm: 'Got it, enable backup',
+    preflightCancel: 'Cancel',
+    preflightOwikiNotice: 'Detected a previous owiki backup history — backups will continue from where they left off',
+    preflightUnreachableHint:
+      'Cannot reach the remote repository (bad URL/token or network) — configuration saved; retry with "Back up now" later',
   },
 
   createVault: {

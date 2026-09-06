@@ -160,6 +160,14 @@ export interface GitBackupConfig {
   status: string
 }
 
+/** 开启前远程探测结果 */
+export interface GitBackupPreflight {
+  status: 'empty' | 'owiki' | 'foreign' | 'no-branch' | 'unreachable'
+  headShort: string
+  lastMessage: string
+  detail: string
+}
+
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (res.status === 401) throw new UnauthorizedError()
@@ -288,6 +296,11 @@ export const api = {
   ) => send<{ data: GitBackupConfig }>(`/api/vaults/${vid}/git-backup`, 'PUT', body),
   /** 立即备份一轮（跳过防抖） */
   runGitBackup: (vid: number) => send<{ ok: boolean }>(`/api/vaults/${vid}/git-backup/run`, 'POST'),
+  /** 开启前探测远程仓库状态（empty/owiki/foreign/no-branch/unreachable） */
+  preflightGitBackup: (
+    vid: number,
+    body: { remoteUrl?: string; token?: string; branch?: string },
+  ) => send<{ data: GitBackupPreflight }>(`/api/vaults/${vid}/git-backup/preflight`, 'POST', body),
 
   // ---------- 文件读写（跨 vault 的旧接口，按 id） ----------
   listFiles: () => get<{ data: FileMeta[]; total: number }>('/api/files'),
