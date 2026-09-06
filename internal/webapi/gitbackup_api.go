@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,13 +16,51 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// gitBackupSyncLog 恢复应用写同步日志用。SetGitBackupSyncLog 注入（可空）。
+var gitBackupSyncLog *repository.SyncLogRepo
+
+// SetGitBackupSyncLog 注入同步日志仓库（main 装配时调用）。
+func SetGitBackupSyncLog(r *repository.SyncLogRepo) { gitBackupSyncLog = r }
+
+// validRestoreRef 恢复来源 ref 白名单：目标分支名或 owiki/diverged-* 护底分支。
+// 拒绝怪字符防 ref 注入。
+func validRestoreRef(ref string) bool {
+	if ref == "" {
+		return true
+	}
+	if strings.HasPrefix(ref, "owiki/diverged-") {
+		return len(ref) <= 64
+	}
+	for _, r := range ref {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '-' || r == '_' || r == '/' || r == '.') {
+			return false
+		}
+	}
+	return len(ref) <= 64
+}
+
+// sanitizeErrPublic 对外错误信息去 token（URL userinfo 形态）。
+func sanitizeErrPublic(err error) string {
+	msg := err.Error()
+	if i := strings.Index(msg, "://"); i >= 0 {
+		rest := msg[i+3:]
+		if j := strings.Index(rest, "@"); j >= 0 {
+			msg = msg[:i+3] + msg[i+3+j+1:]
+		}
+	}
+	return msg
+}
+
 // RegisterGitBackupRoutes vault 级 git 备份配置 + 手动触发（需登录）。
 // 路由组整体挂 feature.Require("gitbackup")：总开关关闭时全部 404。
 //
-//	GET  /api/vaults/:vid/git-backup        查配置+状态（token 掩码）
-//	PUT  /api/vaults/:vid/git-backup        保存配置；enabled 从 false→true 时起 worker
-//	POST /api/vaults/:vid/git-backup/preflight  探测远程仓库状态（开启前确认用）
-//	POST /api/vaults/:vid/git-backup/run    立即备份一轮（跳过防抖）
+//	GET  /api/vaults/:vid/git-backup                 查配置+状态（token 掩码）
+//	PUT  /api/vaults/:vid/git-backup                 保存配置；enabled 从 false→true 时起 worker
+//	POST /api/vaults/:vid/git-backup/preflight       探测远程仓库状态（开启前确认用）
+//	POST /api/vaults/:vid/git-backup/restore/diff    恢复预览（远程 vs DB 差异清单）
+//	POST /api/vaults/:vid/git-backup/restore/apply   恢复应用（选中文件写回 DB）
+//	POST /api/vaults/:vid/git-backup/run             立即备份一轮（跳过防抖）
 func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupRepo, mgr *gitbackup.Manager, vaultRepo *repository.VaultRepo, eventHub *events.Hub, runner *gitbackup.Runner) {
 	g := api.Group("/vaults/:vid/git-backup", feature.Require(gitbackup.FeatureID))
 
@@ -149,6 +188,85 @@ func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupR
 			return
 		}
 		res := runner.Preflight(c.Request.Context(), body.RemoteURL, body.Token, body.Branch)
+		c.JSON(http.StatusOK, gin.H{"data": res})
+	})
+
+	// 恢复预览：远程（或护底分支）vs DB 的文件差异清单。
+	g.POST("/restore/diff", func(c *gin.Context) {
+		if runner == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "gitbackup runner not ready"})
+			return
+		}
+		var body struct {
+			From string `json:"from"` // 可选：护底分支名；空 = 目标分支 HEAD
+		}
+		_ = c.ShouldBindJSON(&body)
+
+		vid := c.GetInt64("vid")
+		cfg, err := gbRepo.GetByVault(c.Request.Context(), vid)
+		if err != nil || cfg.RemoteURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "remote not configured"})
+			return
+		}
+		if !validRestoreRef(body.From) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ref"})
+			return
+		}
+		diff, err := runner.RestoreDiff(c.Request.Context(), cfg, body.From)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": sanitizeErrPublic(err)})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": diff})
+	})
+
+	// 恢复应用：把选中的远程文件写回 DB（Force 覆盖）。
+	g.POST("/restore/apply", func(c *gin.Context) {
+		if runner == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "gitbackup runner not ready"})
+			return
+		}
+		var body struct {
+			From  string   `json:"from"`
+			Mode  string   `json:"mode"` // all | selected
+			Paths []string `json:"paths"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+			return
+		}
+		if body.Mode != "all" && body.Mode != "selected" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be all|selected"})
+			return
+		}
+		if body.Mode == "selected" && len(body.Paths) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "paths required for selected mode"})
+			return
+		}
+		if !validRestoreRef(body.From) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ref"})
+			return
+		}
+
+		vid := c.GetInt64("vid")
+		cfg, err := gbRepo.GetByVault(c.Request.Context(), vid)
+		if err != nil || cfg.RemoteURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "remote not configured"})
+			return
+		}
+		res, err := runner.RestoreApply(c.Request.Context(), cfg, body.From, body.Mode, body.Paths)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": sanitizeErrPublic(err)})
+			return
+		}
+		// 同步日志 + SSE 事件（前端 GitBackupCard 刷新状态）
+		if gitBackupSyncLog != nil {
+			gitBackupSyncLog.Record(c.Request.Context(), vid, "gitbackup.restore", "",
+				fmt.Sprintf("restored %d files (ref=%s)", res.Applied, body.From), "gitbackup", "", "Git 备份", int64(res.Applied))
+		}
+		if eventHub != nil {
+			eventHub.Publish(events.Event{Type: "vault.log", VaultID: vid})
+		}
 		c.JSON(http.StatusOK, gin.H{"data": res})
 	})
 

@@ -149,6 +149,12 @@ func (s *Runner) run(ctx context.Context, cfg *model.VaultGitBackup, allowRebuil
 		// 分叉自愈：本地工作树只是缓存，与远程不同源（换了 remote / 远程被重建）
 		// 时删掉重建，以远程为基底重新物化——绝不 force push，DB 是唯一真相。
 		if errors.Is(err, errDiverged) && allowRebuild {
+			// 护底分支（方案 A）：重建会覆盖远程 HEAD（物化清掉 DB 外文件），
+			// 覆盖前把远程当前 HEAD 存进 owiki/diverged-<时间戳> 保护分支——
+			// best effort，失败只记日志不阻断自愈（历史仍在远程对象库里）。
+			if keepErr := s.protectDivergedRemote(ctx, repo, cfg); keepErr != nil {
+				log.Printf("[gitbackup] vault=%d keep diverged backup ref failed: %v", cfg.VaultID, keepErr)
+			}
 			log.Printf("[gitbackup] vault=%d diverged from remote, rebuilding worktree from remote base", cfg.VaultID)
 			if rmErr := s.RemoveWorktree(cfg.VaultID); rmErr != nil {
 				return res, fmt.Errorf("rebuild cleanup: %w", rmErr)
@@ -165,6 +171,39 @@ func (s *Runner) run(ctx context.Context, cfg *model.VaultGitBackup, allowRebuil
 	}
 	res.Pushed = true
 	return res, nil
+}
+
+// protectDivergedRemote 分叉自愈的护底（方案 A）：覆盖远程前，把远程当前
+// 分支 HEAD 推到 owiki/diverged-<时间戳> 保护分支，被冲掉的内容显眼可寻。
+// best effort：任何失败只记日志，不阻断自愈。
+func (s *Runner) protectDivergedRemote(ctx context.Context, repo *git.Repository, cfg *model.VaultGitBackup) error {
+	remoteRef := fmt.Sprintf("refs/heads/%s", cfg.Branch)
+	remoteHead, err := fetchRemoteRef(ctx, repo, cfg, remoteRef)
+	if err != nil || remoteHead == "" {
+		return fmt.Errorf("fetch remote head: %v", err)
+	}
+	const remoteName = "origin"
+	_ = repo.DeleteRemote(remoteName)
+	if _, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: remoteName,
+		URLs: []string{cfg.RemoteURL},
+	}); err != nil {
+		return fmt.Errorf("create remote: %w", err)
+	}
+	backupRef := fmt.Sprintf("owiki/diverged-%s", time.Now().Format("20060102-150405"))
+	err = repo.PushContext(ctx, &git.PushOptions{
+		RemoteName: remoteName,
+		Auth:       basicAuth(cfg.Token),
+		// 远程 HEAD hash → 保护分支（远程已有对象，零传输）
+		RefSpecs: []config.RefSpec{config.RefSpec(fmt.Sprintf(
+			"%s:refs/heads/%s", remoteHead, backupRef))},
+	})
+	if err != nil && !strings.Contains(err.Error(), "already up-to-date") {
+		return err
+	}
+	log.Printf("[gitbackup] vault=%d diverged remote HEAD %s kept at branch %s",
+		cfg.VaultID, shortSHA(plumbing.NewHash(remoteHead)), backupRef)
+	return nil
 }
 
 // adoptRemoteBase 远程非空时的基底对接（见 Run 步骤 1.5 的注释）。
@@ -235,6 +274,9 @@ func fetchRemoteRef(ctx context.Context, repo *git.Repository, cfg *model.VaultG
 	err := repo.FetchContext(ctx, &git.FetchOptions{
 		RemoteName: remoteName,
 		Auth:       auth,
+		// Force：分叉自愈/护底时 refs/remotes/origin/<branch> 已存在且指向
+		// 别的 commit（非 fast-forward），不强推更新会被拒 "some refs not updated"。
+		Force: true,
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(fmt.Sprintf("%s:refs/remotes/origin/%s", remoteRef, cfg.Branch)),
 		},
