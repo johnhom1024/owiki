@@ -107,6 +107,10 @@ const zh = {
     deviceConnect: '设备连接',
     deviceUnbind: '设备解绑',
     fileWeb: '网页编辑',
+    // git 备份
+    gitCommit: 'Git 备份',
+    gitError: '备份失败',
+    gitRestore: '备份恢复',
     sourceWs: '插件',
     sourceWeb: '网页',
     sourceOpenapi: 'API',
@@ -229,6 +233,22 @@ const zh = {
     preflightCancel: '取消',
     preflightOwikiNotice: '检测到之前同步过的 owiki 备份历史，将从上次的位置无缝续推',
     preflightUnreachableHint: '无法连接远程仓库（地址/token 有误或网络不通）——已保存配置，稍后可点「立即备份」重试',
+
+    // 恢复导入（方案 C）
+    restoreBtn: '从备份恢复…',
+    restoreTitle: '从 Git 备份恢复',
+    restoreDesc: '对比远程仓库与当前库的差异，选中文件写回（覆盖当前版本）。适合灾难恢复或找回被覆盖的内容。',
+    restoreRefLabel: '恢复来源',
+    restoreRefBranch: '备份分支（最新）',
+    restoreScanning: '正在对比远程与当前库…',
+    restoreEmpty: '远程与当前库完全一致，没有可恢复的内容',
+    restoreRemoteOnly: '远程独有（当前库没有）',
+    restoreDiffers: '内容不同（恢复将覆盖当前版本）',
+    restoreSelectAll: '全选',
+    restoreApply: '恢复选中的 {n} 个文件',
+    restoreApplied: '已恢复 {n} 个文件到当前库',
+    restoreFailed: '恢复失败',
+    restoreDialogHint: '「远程独有」= 备份里有但当前库丢失；「内容不同」= 两边都有但版本不一。恢复走正常写入，Obsidian 会实时收到。',
   },
 
   createVault: {
@@ -510,6 +530,10 @@ const en: typeof zh = {
     deviceConnect: 'device connected',
     deviceUnbind: 'device unbound',
     fileWeb: 'web edit',
+    // git backup
+    gitCommit: 'Git backup',
+    gitError: 'backup failed',
+    gitRestore: 'backup restore',
     sourceWs: 'plugin',
     sourceWeb: 'web',
     sourceOpenapi: 'API',
@@ -634,6 +658,24 @@ const en: typeof zh = {
     preflightOwikiNotice: 'Detected a previous owiki backup history — backups will continue from where they left off',
     preflightUnreachableHint:
       'Cannot reach the remote repository (bad URL/token or network) — configuration saved; retry with "Back up now" later',
+
+    // Restore from backup (Plan C)
+    restoreBtn: 'Restore from backup…',
+    restoreTitle: 'Restore from Git backup',
+    restoreDesc:
+      'Compare the remote repository with the current vault, then write selected files back (overwriting current versions). Useful for disaster recovery or recovering overwritten content.',
+    restoreRefLabel: 'Restore source',
+    restoreRefBranch: 'Backup branch (latest)',
+    restoreScanning: 'Comparing remote with current vault…',
+    restoreEmpty: 'Remote and current vault are identical — nothing to restore',
+    restoreRemoteOnly: 'Remote only (missing in current vault)',
+    restoreDiffers: 'Content differs (restore overwrites current version)',
+    restoreSelectAll: 'Select all',
+    restoreApply: 'Restore {n} selected files',
+    restoreApplied: 'Restored {n} files to current vault',
+    restoreFailed: 'Restore failed',
+    restoreDialogHint:
+      '"Remote only" = in the backup but missing in the vault; "differs" = both sides have it but versions differ. Restores go through the normal write path, Obsidian receives them live.',
   },
 
   createVault: {

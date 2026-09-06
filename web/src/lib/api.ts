@@ -168,6 +168,26 @@ export interface GitBackupPreflight {
   detail: string
 }
 
+/** 恢复预览：远程 vs DB 差异 */
+export interface GitBackupRestoreDiff {
+  ref: string
+  remoteShort: string
+  items: Array<{
+    path: string
+    type: 'remote-only' | 'differs'
+    noteId: number
+    dbMtime: number
+    size: number
+  }>
+  total: number
+}
+
+/** 恢复应用结果 */
+export interface GitBackupRestoreResult {
+  applied: number
+  skipped: string[]
+}
+
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (res.status === 401) throw new UnauthorizedError()
@@ -301,6 +321,16 @@ export const api = {
     vid: number,
     body: { remoteUrl?: string; token?: string; branch?: string },
   ) => send<{ data: GitBackupPreflight }>(`/api/vaults/${vid}/git-backup/preflight`, 'POST', body),
+  /** 恢复预览：远程（或护底分支）vs DB 的差异清单 */
+  restoreDiffGitBackup: (vid: number, from?: string) =>
+    send<{ data: GitBackupRestoreDiff }>(`/api/vaults/${vid}/git-backup/restore/diff`, 'POST', {
+      from: from ?? '',
+    }),
+  /** 恢复应用：选中文件写回 DB（Force 覆盖） */
+  restoreApplyGitBackup: (
+    vid: number,
+    body: { from?: string; mode: 'all' | 'selected'; paths?: string[] },
+  ) => send<{ data: GitBackupRestoreResult }>(`/api/vaults/${vid}/git-backup/restore/apply`, 'POST', body),
 
   // ---------- 文件读写（跨 vault 的旧接口，按 id） ----------
   listFiles: () => get<{ data: FileMeta[]; total: number }>('/api/files'),

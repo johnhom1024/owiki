@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
+  ArchiveRestore,
   ArrowRightLeft,
   CircleAlert,
   CloudUpload,
   FileMinus,
   FilePen,
   FilePlus,
+  GitBranch,
   GitMerge,
   Laptop,
   PlugZap,
@@ -60,6 +62,9 @@ export function SyncLogCard({ vaultId, refreshTick }: SyncLogCardProps) {
       'device.connect': { icon: PlugZap, verb: t.syncLog.deviceConnect, color: 'text-emerald-600 dark:text-emerald-400' },
       'device.unbind': { icon: Unplug, verb: t.syncLog.deviceUnbind, color: 'text-muted-foreground' },
       'file.web': { icon: CloudUpload, verb: t.syncLog.fileWeb, color: 'text-sky-600 dark:text-sky-400' },
+      'gitbackup.commit': { icon: GitBranch, verb: t.syncLog.gitCommit, color: 'text-emerald-600 dark:text-emerald-400' },
+      'gitbackup.error': { icon: CircleAlert, verb: t.syncLog.gitError, color: 'text-destructive' },
+      'gitbackup.restore': { icon: ArchiveRestore, verb: t.syncLog.gitRestore, color: 'text-violet-600 dark:text-violet-400' },
     }
   }, [t])
 

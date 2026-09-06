@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
+  ArchiveRestore,
   CheckCircle2,
   CloudUpload,
   GitBranch,
@@ -24,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card.tsx'
+import { GitBackupRestoreDialog } from '@/components/GitBackupRestoreDialog.tsx'
 import {
   Dialog,
   DialogContent,
@@ -60,6 +62,7 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const [probing, setProbing] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [restoreOpen, setRestoreOpen] = useState(false)
   const [preflight, setPreflight] = useState<GitBackupPreflight | null>(null)
   const refreshTimer = useRef<number | null>(null)
 
@@ -321,23 +324,24 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
               )}
             </div>
             {enabled && configured && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                disabled={running}
-                onClick={() => void runNow()}
-              >
-                {running ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin" /> {t.gitBackup.running}
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="size-3.5" /> {t.gitBackup.runNow}
-                  </>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" disabled={running} onClick={() => void runNow()}>
+                  {running ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" /> {t.gitBackup.running}
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="size-3.5" /> {t.gitBackup.runNow}
+                    </>
+                  )}
+                </Button>
+                {configured && (
+                  <Button variant="outline" size="sm" onClick={() => setRestoreOpen(true)}>
+                    <ArchiveRestore className="size-3.5" /> {t.gitBackup.restoreBtn}
+                  </Button>
                 )}
-              </Button>
+              </div>
             )}
           </div>
         )}
@@ -394,6 +398,14 @@ export function GitBackupCard({ vaultId, refreshTick }: GitBackupCardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 从备份恢复 */}
+      <GitBackupRestoreDialog
+        vaultId={vaultId}
+        open={restoreOpen}
+        onOpenChange={setRestoreOpen}
+        onRestored={() => void load()}
+      />
     </Card>
   )
 }
