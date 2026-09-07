@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom'
 import { api, UnauthorizedError, type VaultMeta } from '@/lib/api.ts'
 import { FeaturesProvider, useFeatures, useSyncGlobalFeatures } from '@/lib/features.tsx'
+import { AIProvider } from '@/lib/ai.tsx'
 import { AppShell } from '@/components/AppShell.tsx'
 import { HomePage } from '@/pages/HomePage.tsx'
 import { VaultPage } from '@/pages/VaultPage.tsx'
@@ -63,7 +64,9 @@ const router = createBrowserRouter([
 export function App() {
   return (
     <FeaturesProvider>
+      <AIProvider>
       <RouterProvider router={router} />
+      </AIProvider>
     </FeaturesProvider>
   )
 }

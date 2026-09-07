@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog.tsx'
 import { Logo } from '@/components/Logo.tsx'
+import { AISettingsCard } from '@/components/AISettingsCard.tsx'
 
 /* ============================================================
    设置弹窗：Obsidian 式左导航 + 右内容
@@ -226,21 +227,24 @@ export function SettingsDialog({
                     <>
                       <div className="divide-border divide-y">
                         {features.map((f) => (
-                          <div key={f.id} className="flex items-start justify-between gap-6 py-3">
-                            <div className="min-w-0">
-                              <p className="text-sm leading-none">{f.name}</p>
-                              <p className="text-muted-foreground mt-1.5 text-xs leading-snug">{f.desc}</p>
+                          <div key={f.id}>
+                            <div className="flex items-start justify-between gap-6 py-3">
+                              <div className="min-w-0">
+                                <p className="text-sm leading-none">{f.name}</p>
+                                <p className="text-muted-foreground mt-1.5 text-xs leading-snug">{f.desc}</p>
+                              </div>
+                              {f.canToggle ? (
+                                <Switch
+                                  checked={f.enabled}
+                                  onChange={(e) => void handleToggle(f, e.target.checked)}
+                                />
+                              ) : (
+                                <Badge variant="secondary" className="shrink-0">
+                                  {t.settings.pluginsCore}
+                                </Badge>
+                              )}
                             </div>
-                            {f.canToggle ? (
-                              <Switch
-                                checked={f.enabled}
-                                onChange={(e) => void handleToggle(f, e.target.checked)}
-                              />
-                            ) : (
-                              <Badge variant="secondary" className="shrink-0">
-                                {t.settings.pluginsCore}
-                              </Badge>
-                            )}
+                            {f.id === 'chat' && f.enabled && <AISettingsCard />}
                           </div>
                         ))}
                       </div>

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"owiki/internal/agent"
 	"owiki/internal/events"
 	"owiki/internal/feature"
 	"owiki/internal/gitbackup"
@@ -16,6 +17,7 @@ import (
 	owikimcp "owiki/internal/mcp"
 	"owiki/internal/openapi"
 	"owiki/internal/repository"
+	"owiki/internal/tools"
 	"owiki/internal/webapi"
 	"owiki/internal/ws"
 
@@ -164,6 +166,19 @@ func main() {
 	owikimcp.New(repo, vaultRepo, apiKeyRepo, attachStore, deviceRepo, h, syncLogRepo, shareRepo, version).Register(r)
 	// 分享：管理端走 apiGroup（需登录），公开端直接挂 r（免登录）
 	webapi.RegisterShareRoutes(apiGroup, r, repo, shareRepo, attachStore)
+
+	// 内置 AI 对话（L2 feature "chat"）：工具桥 + trpc-agent-go loop + 会话持久化
+	aiSettingsRepo := repository.NewAISettingsRepo(repo.DB())
+	chatStore, chatStoreErr := repository.NewChatStore(repo.DB())
+	if chatStoreErr != nil {
+		log.Fatalf("init chat db: %v", chatStoreErr)
+	}
+	agentMgr := agent.NewManager(aiSettingsRepo, &tools.Host{
+		Repo: repo, Vaults: vaultRepo, Keys: apiKeyRepo, Attach: attachStore,
+		Devices: deviceRepo, Hub: h, SyncLog: syncLogRepo, Share: shareRepo, Version: version,
+	}, chatStore)
+	chatGroup := apiGroup.Group("", feature.Require("chat"))
+	agent.RegisterAPI(chatGroup, agentMgr, aiSettingsRepo)
 
 	// WebSocket 同步端点
 	r.GET("/ws", func(c *gin.Context) {

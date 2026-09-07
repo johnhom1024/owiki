@@ -23,6 +23,7 @@ import { CreateVaultDialog } from '@/components/CreateVaultDialog.tsx'
 import { FileTree } from '@/components/FileTree.tsx'
 import { Logo } from '@/components/Logo.tsx'
 import { SettingsDialog } from '@/components/SettingsDialog.tsx'
+import { ChatEntry } from '@/components/ChatEntry.tsx'
 
 /** 移动端顶栏的设置齿轮：自持弹窗状态 */
 function SettingsDrawerButton() {
@@ -306,6 +307,7 @@ function SidebarBody({
         />
       )}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ChatEntry />
     </div>
   )
 }

@@ -319,6 +319,25 @@ const zh = {
     generateFailed: '生成失败',
   },
 
+
+  chat: {
+    entry: 'AI 助手',
+    panelTitle: 'AI 助手',
+    panelDesc: '直接对话读写你的笔记库',
+    emptyHint: '问我任何关于笔记库的问题，或让我帮你整理笔记',
+    placeholder: '输入消息...',
+    thinking: '思考中...',
+    confirmTitle: 'AI 请求执行危险操作',
+    confirmAllow: '允许',
+    confirmDeny: '拒绝',
+    settingsTitle: 'AI 对话配置',
+    settingsHint: '接任何 OpenAI 兼容端点：填好三项并测试通过后，右侧出现对话入口',
+    keyKeepHint: '已保存（留空保持不变）',
+    testBtn: '测试连接',
+    readyHint: '已就绪，右侧可对话',
+    notReadyHint: '未就绪：保存并测试通过后入口出现',
+  },
+
   settings: {
     title: '设置',
     appearance: '外观',
@@ -745,6 +764,25 @@ const en: typeof zh = {
     wrongPassword: 'Wrong password',
     statusFailed: 'Failed to get 2FA status',
     generateFailed: 'Failed to generate',
+  },
+
+
+  chat: {
+    entry: 'AI Assistant',
+    panelTitle: 'AI Assistant',
+    panelDesc: 'Chat with your vault directly',
+    emptyHint: 'Ask anything about your notes, or let me organize them',
+    placeholder: 'Type a message...',
+    thinking: 'Thinking...',
+    confirmTitle: 'AI requests a destructive operation',
+    confirmAllow: 'Allow',
+    confirmDeny: 'Deny',
+    settingsTitle: 'AI Chat Setup',
+    settingsHint: 'Works with any OpenAI-compatible endpoint: fill in the three fields and pass the test to reveal the chat entry',
+    keyKeepHint: 'Saved (leave blank to keep)',
+    testBtn: 'Test',
+    readyHint: 'Ready — chat from the right panel',
+    notReadyHint: 'Not ready: save and pass the test to show the entry',
   },
 
   settings: {

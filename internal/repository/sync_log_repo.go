@@ -30,6 +30,7 @@ const (
 	SourceWeb     = "web"
 	SourceOpenAPI = "openapi"
 	SourceMCP     = "mcp"
+	SourceChat    = "chat"
 )
 
 // 保留策略：30 天 + 单 vault 上限 5000 条（超出删除最旧的）
