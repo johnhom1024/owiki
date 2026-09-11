@@ -5,9 +5,16 @@
 #   ./scripts/tag.sh                 列出近期 tag
 #   ./scripts/tag.sh list
 #   ./scripts/tag.sh beta            基于最新正式版，提议下一个 vX.Y.(Z+1)-beta.N
+#                                    在 feature 分支上自动带分支标识：
+#                                    feat/agent-chat → vX.Y.Z-feature-agent-chat-beta.N
 #   ./scripts/tag.sh beta 0.0.3      指定系列（已有 beta.1 则提议 beta.2）
 #   ./scripts/tag.sh release         提议下一个正式版 vX.Y.(Z+1)
 #   ./scripts/tag.sh release 0.1.0   指定正式版号
+#
+# 分支标识规则（beta 专用）：
+#   feat/xxx、feature/xxx → feature-xxx；fix/xxx → fix-xxx；其余 <type>/xxx → <type>-xxx
+#   斜杠取最后一段，下划线转连字符；main / master / release 上不标识（纯 vX.Y.Z-beta.N）
+#   同系列内序号按完整 tag 后缀（beta.N）独立递增，多 feature 并行互不干扰
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -37,9 +44,11 @@ latest_stable() {
 }
 
 # 某系列下已有的 beta.N（stdout 一行一个完整 tag，新→旧）
+# $2 可选：分支标识段（空 = 纯 beta；"-feature-agent-chat" = 带分支的 beta）
 beta_tags_of() {
   local series="$1" # 0.0.3
-  all_tags | grep -E "^v${series//./\\.}-beta\.[0-9]+$" || true
+  local middle="${2:-}" # -feature-agent-chat 或空
+  all_tags | grep -E "^v${series//./\\.}${middle}-beta\.[0-9]+$" || true
 }
 
 tag_exists() {
@@ -57,6 +66,33 @@ bump_patch() {
 beta_n() {
   local tag="$1"
   [[ "$tag" =~ -beta\.([0-9]+)$ ]] && echo "${BASH_REMATCH[1]}"
+}
+
+# 当前分支的 beta 标识（stdout 一行；main 等主干输出空）
+#   feat/agent-chat → feature-agent-chat
+#   fix/rename-boundary → fix-rename-boundary
+#   feat/xxx 这种「类型前缀与 slug 同名」时避免 feature-feature-xxx 双写：
+#   feature/agent-chat → feature-agent-chat；feat/agent-chat → feature-agent-chat
+branch_suffix() {
+  local branch="${1:-$(git rev-parse --abbrev-ref HEAD)}"
+  [[ "$branch" == "main" || "$branch" == "master" || -z "$branch" || "$branch" == "HEAD" ]] && return 0
+
+  local slug="${branch##*/}"        # 取最后一段：feat/agent-chat → agent-chat
+  slug="${slug//_/-}"               # 下划线统一为连字符
+
+  # feat/xxx / feature/xxx → feature-xxx；fix/xxx → fix-xxx；其他 type/xxx → type-xxx
+  local prefix="${branch%%/*}"
+  if [[ "$prefix" == "$branch" ]]; then
+    echo "$slug"                    # 无斜杠的裸分支名：直接用 slug
+    return
+  fi
+  [[ "$prefix" == "feat" ]] && prefix="feature"
+  # slug 本身已含该前缀（feature/feature-xxx）时去重
+  if [[ "$slug" == "${prefix}-"* ]]; then
+    echo "$slug"
+  else
+    echo "${prefix}-${slug}"
+  fi
 }
 
 confirm_tag() {
@@ -87,8 +123,10 @@ confirm_tag() {
     *) echo "已取消。"; exit 0 ;;
   esac
 
-  git tag "$tag"
-  echo "已打 ${tag} @ ${head}"
+  git tag -a "$tag" -m "branch: $(git rev-parse --abbrev-ref HEAD)
+commit: $(git rev-parse --short HEAD)
+subject: $(git log -1 --format=%s)"
+  echo "已打 ${tag} @ ${head}（附注 tag，含 branch/commit 元数据）"
   echo "推远程：git push origin ${tag}"
 }
 
@@ -155,19 +193,26 @@ cmd_beta() {
     exit 1
   fi
 
+  # 分支标识：feature 分支上 beta tag 自动带 v0.0.6-feature-agent-chat-beta.N 形态
+  local suffix
+  suffix="$(branch_suffix)"
+  local middle=""
+  [[ -n "$suffix" ]] && middle="-${suffix}"
+
+  # 同系列、同分支标识下的已有 beta（多 feature 并行时序号各自独立）
   local last n=0 existing
-  existing="$(beta_tags_of "$series")"
+  existing="$(beta_tags_of "$series" "${middle}")"
   if [[ -n "$existing" ]]; then
     last="$(printf '%s\n' "$existing" | awk 'NR==1')"
     n="$(beta_n "$last")"
   fi
-  local next="v${series}-beta.$((n + 1))"
+  local next="v${series}${middle}-beta.$((n + 1))"
 
-  echo "系列 ${series}"
+  echo "系列 ${series}${middle:+（分支 ${suffix}）}"
   echo "  最新正式版： ${latest:-（无）}"
   echo "  已有 beta："
   local existing
-  existing="$(beta_tags_of "$series")"
+  existing="$(beta_tags_of "$series" "${middle}")"
   if [[ -z "$existing" ]]; then
     echo "    （无）"
   else

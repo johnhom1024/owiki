@@ -8,8 +8,9 @@ OWiki 采用「版本号 tag 永久钉死 + latest 只跟正式版」的分发�
 | 层面 | 格式 | 示例 | 说明 |
 | --- | --- | --- | --- |
 | git tag（正式） | `v` + SemVer | `v0.0.2` | 标记一次正式发版 |
-| git tag（预发布） | `v` + SemVer + `-beta.N` | `v0.0.3-beta.1` | 远程测试用，序号人手动递增 |
-| 镜像 tag | 去掉 `v` 前缀 | `0.0.2` / `0.0.3-beta.1` | 与 git tag 一一对应，永久保留 |
+| git tag（预发布） | `v` + SemVer + `-beta.N` | `v0.0.3-beta.1` | 主干测试用，序号人手动递增 |
+| git tag（feature 预发布） | `v` + SemVer + `-<分支标识>-beta.N` | `v0.0.6-feature-agent-chat-beta.1` | feature 分支远程测试；序号按「系列+分支」分组独立递增 |
+| 镜像 tag | 去掉 `v` 前缀 | `0.0.2` / `0.0.3-beta.1` / `0.0.6-feature-agent-chat-beta.1` | 与 git tag 一一对应，永久保留 |
 | 滚动 tag | `latest` | — | **只**在正式发版时更新，预发布不碰 |
 
 ## 用脚本打 tag
@@ -20,6 +21,8 @@ OWiki 采用「版本号 tag 永久钉死 + latest 只跟正式版」的分发�
 ./scripts/tag.sh                 # 列出正式版 / 进行中的 beta / 下一步建议
 ./scripts/tag.sh beta            # 基于最新正式版，提议 v0.0.3-beta.1（已有则 +1）
 ./scripts/tag.sh beta 0.0.3      # 指定系列
+./scripts/tag.sh beta            # 在 feat/xxx、fix/xxx 分支上自动带分支标识：
+                                 #   feat/agent-chat → v0.0.6-feature-agent-chat-beta.N
 ./scripts/tag.sh release         # 提议下一个正式版 v0.0.3
 ./scripts/tag.sh release 0.1.0   # 指定正式版号
 ```
@@ -44,11 +47,17 @@ CNB 源挂在其代码仓库 cnb.cool/johnhom1024/owiki（Public）下，匿名�
 **预发布（远程测试，不更新 latest）：**
 
 ```bash
-./scripts/tag.sh beta          # 本地打 v0.0.3-beta.1
+./scripts/tag.sh beta          # 本地打 v0.0.3-beta.1（feature 分支上自动带分支标识）
 git push origin v0.0.3-beta.1  # 触发 CI
 ```
 
 镜像：`johnhom1024/owiki:0.0.3-beta.1`（钉死）。GitHub 标成 pre-release。
+feature 分支上形如 `v0.0.6-feature-agent-chat-beta.1`——release.yml 无需任何
+改动（tag 含 `-` 即预发布），Web 更新检测按 semver 全序正常解析
+（`0.0.6-feature-*-beta.N` 排在 `0.0.6-beta.N` 之后、`0.0.6` 正式版之前）。
+系列号是打 tag 那一刻的锚点，不承诺最终合入版本：若正式版先占了该系列
+（如 main 紧急修复发了 v0.0.6），不带参数再跑 `tag.sh beta` 会自动滚到
+下一系列（v0.0.7-...-beta.1）。
 测试机 compose 写死这个 tag，测下一份再改 yaml。
 
 **正式发版（更新 latest）：**
