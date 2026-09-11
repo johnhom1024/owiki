@@ -109,6 +109,34 @@ func TestSessionServiceRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAppendEventIgnoresCanceledContext(t *testing.T) {
+	db := testDB(t)
+	store, err := repository.NewChatStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewSessionService(store)
+	key := session.Key{AppName: "owiki", UserID: "admin", SessionID: "cancel-1"}
+	sess, err := svc.CreateSession(context.Background(), key, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ev := &event.Event{
+		Response: &trpcmodel.Response{
+			Choices: []trpcmodel.Choice{{Message: trpcmodel.Message{Role: trpcmodel.RoleAssistant, Content: "收尾"}}},
+		},
+	}
+	if err := svc.AppendEvent(ctx, sess, ev); err != nil {
+		t.Fatalf("canceled ctx should still persist: %v", err)
+	}
+	got, err := store.LoadEvents(context.Background(), "cancel-1")
+	if err != nil || len(got) != 1 {
+		t.Fatalf("expected 1 persisted event, got %d err=%v", len(got), err)
+	}
+}
+
 func TestSessionServiceTwoSessionsSameUser(t *testing.T) {
 	db := testDB(t)
 	store, err := repository.NewChatStore(db)

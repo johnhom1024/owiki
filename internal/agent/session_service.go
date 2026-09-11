@@ -32,6 +32,16 @@ func sessKeyToModel(key session.Key) (appName, userID, sessionID string) {
 	return key.AppName, key.UserID, key.SessionID
 }
 
+// persistCtx 落库不跟 HTTP 请求取消走。runner 收尾写 completion 事件时，
+// gin 往往已经结束 handler、Request.Context 已 canceled，直接用原 ctx
+// 会打出 "Failed to append runner completion event: context canceled"。
+func persistCtx(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return context.WithoutCancel(ctx)
+}
+
 // CreateSession 实现 session.Service。
 func (s *sqliteSessionService) CreateSession(ctx context.Context, key session.Key, state session.StateMap, _ ...session.Option) (*session.Session, error) {
 	sess := session.NewSession(key.AppName, key.UserID, key.SessionID,
@@ -39,13 +49,14 @@ func (s *sqliteSessionService) CreateSession(ctx context.Context, key session.Ke
 		session.WithSessionCreatedAt(time.Now()),
 		session.WithSessionUpdatedAt(time.Now()),
 	)
-	if err := s.store.CreateSession(ctx, &model.ChatSession{
+	pctx := persistCtx(ctx)
+	if err := s.store.CreateSession(pctx, &model.ChatSession{
 		ID: key.SessionID, AppName: key.AppName, UserID: key.UserID,
 	}); err != nil {
 		return nil, err
 	}
 	if len(state) > 0 {
-		if err := s.store.SaveSessionState(ctx, key.SessionID, state); err != nil {
+		if err := s.store.SaveSessionState(pctx, key.SessionID, state); err != nil {
 			return nil, err
 		}
 	}
@@ -130,10 +141,11 @@ func (s *sqliteSessionService) AppendEvent(ctx context.Context, sess *session.Se
 		e.Response.Choices[0].Message.Role == "user" {
 		title = truncateRunes(e.Response.Choices[0].Message.Content, 60)
 	}
-	if err := s.store.AppendEvents(ctx, sess.ID, []json.RawMessage{b}); err != nil {
+	pctx := persistCtx(ctx)
+	if err := s.store.AppendEvents(pctx, sess.ID, []json.RawMessage{b}); err != nil {
 		return err
 	}
-	return s.store.TouchSession(ctx, sess.AppName, sess.UserID, sess.ID, title)
+	return s.store.TouchSession(pctx, sess.AppName, sess.UserID, sess.ID, title)
 }
 
 // —— 以下状态方法：OWiki 不用 app/user 级状态，全部空实现 ——

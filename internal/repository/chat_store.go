@@ -46,16 +46,18 @@ func (s *ChatStore) CreateSession(ctx context.Context, sess *model.ChatSession) 
 }
 
 // GetSession 取会话元数据。
+// 用 Find 而不是 First：新建会话时 0 行是预期路径，First 会让 GORM
+// 把 record not found 打成 ERROR 日志，看起来像请求失败。
 func (s *ChatStore) GetSession(ctx context.Context, appName, userID, sessionID string) (*model.ChatSession, error) {
 	var cs model.ChatSession
-	err := s.db.WithContext(ctx).
+	res := s.db.WithContext(ctx).
 		Where("app_name = ? AND user_id = ? AND id = ?", appName, userID, sessionID).
-		First(&cs).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrChatSessionNotFound
-		}
-		return nil, err
+		Limit(1).Find(&cs)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, ErrChatSessionNotFound
 	}
 	return &cs, nil
 }
@@ -151,12 +153,12 @@ func (s *ChatStore) SaveSessionState(ctx context.Context, sessionID string, stat
 // LoadSessionState 读会话级状态。
 func (s *ChatStore) LoadSessionState(ctx context.Context, sessionID string) (map[string][]byte, error) {
 	var row model.Setting
-	err := s.db.WithContext(ctx).Where("key = ?", "chat.state."+sessionID).First(&row).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
+	res := s.db.WithContext(ctx).Where("key = ?", "chat.state."+sessionID).Limit(1).Find(&row)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, nil
 	}
 	var out map[string][]byte
 	if err := json.Unmarshal([]byte(row.Value), &out); err != nil {
