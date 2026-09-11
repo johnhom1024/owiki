@@ -149,14 +149,18 @@ export function ChatPanel() {
     }
 
     function handleFrame(frame: string) {
-      // SSE 帧：event: <name>\ndata: <json>
-      const evMatch = frame.match(/^event: (.+)$/m)
-      const dataMatch = frame.match(/^data: (.+)$/m)
-      if (!evMatch || !dataMatch) return
-      const name = evMatch[1]
+      // SSE 帧（规范解析）：event: <name>\ndata: <json>，冒号后空格可有可无
+      // （gin 的 SSEvent 写的是 "event:token" 无空格，多行 data 按 \n 连接）
+      let name = ''
+      const dataLines: string[] = []
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) name = line.slice(6).trim()
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''))
+      }
+      if (!name || dataLines.length === 0) return
       let data: any = {}
       try {
-        data = JSON.parse(dataMatch[1])
+        data = JSON.parse(dataLines.join('\n'))
       } catch {
         return
       }
