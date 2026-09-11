@@ -62,13 +62,7 @@ const router = createBrowserRouter([
 ])
 
 export function App() {
-  return (
-    <FeaturesProvider>
-      <AIProvider>
-      <RouterProvider router={router} />
-      </AIProvider>
-    </FeaturesProvider>
-  )
+  return <RouterProvider router={router} />
 }
 
 /**
@@ -165,34 +159,40 @@ function AdminApp() {
     return <LoginPage onLoggedIn={() => setAuthed(true)} />
   }
 
+  // Features/AI 必须挂在登录成功之后：/api/features 与 /api/chat/settings 都要 cookie。
+  // 挂在 Router 外会在登录页就 401，catch 把 features 钉成 null，插件栏一直「加载中」。
   return (
-    <AdminCtx.Provider
-      value={{
-        vaults,
-        refreshVaults,
-        refreshTick,
-        logRefreshTicks,
-        syncProgress,
-      }}
-    >
-      <FeatureSync />
-      <AppShell
-        vaults={vaults ?? []}
-        onRefresh={refreshVaults}
-        treeRefreshTick={treeRefreshTicks}
-        syncProgress={syncProgress}
-        onLogout={async () => {
-          try {
-            await api.logout()
-          } catch {
-            // 忽略登出失败
-          }
-          setAuthed(false)
-        }}
-      >
-        <Outlet />
-      </AppShell>
-    </AdminCtx.Provider>
+    <FeaturesProvider>
+      <AIProvider>
+        <AdminCtx.Provider
+          value={{
+            vaults,
+            refreshVaults,
+            refreshTick,
+            logRefreshTicks,
+            syncProgress,
+          }}
+        >
+          <FeatureSync />
+          <AppShell
+            vaults={vaults ?? []}
+            onRefresh={refreshVaults}
+            treeRefreshTick={treeRefreshTicks}
+            syncProgress={syncProgress}
+            onLogout={async () => {
+              try {
+                await api.logout()
+              } catch {
+                // 忽略登出失败
+              }
+              setAuthed(false)
+            }}
+          >
+            <Outlet />
+          </AppShell>
+        </AdminCtx.Provider>
+      </AIProvider>
+    </FeaturesProvider>
   )
 }
 

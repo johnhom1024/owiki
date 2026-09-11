@@ -108,7 +108,7 @@ export function SettingsDialog({
 }) {
   const { t, lang, setLang } = useLang()
   const { theme, setTheme } = useTheme()
-  const { features, toggle } = useFeatures()
+  const { features, toggle, refresh: refreshFeatures } = useFeatures()
   const [tab, setTab] = useState<SettingsTab>('appearance')
   const [version, setVersion] = useState<string | null>(null)
   const [update, setUpdate] = useState<UpdateCheckResult['update']>(null)
@@ -121,6 +121,10 @@ export function SettingsDialog({
       // 失败时 Provider 已重新拉取权威状态
     }
   }
+
+  useEffect(() => {
+    if (open && features === null) void refreshFeatures()
+  }, [open, features, refreshFeatures])
 
   useEffect(() => {
     if (!open || fetched.current) return

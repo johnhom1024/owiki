@@ -11,7 +11,8 @@ import {
 /**
  * L2 内置插件：前端 feature registry。
  *
- * - 启动拉 GET /api/features 建状态；关掉的功能：路由不挂、侧栏项消失、按钮隐藏
+ * - 登录后拉 GET /api/features 建状态；关掉的功能：路由不挂、侧栏项消失、按钮隐藏
+ *   （必须挂在已登录树内：未登录 401 会把 features 钉成 null，设置页插件栏一直「加载中」）
  * - 设置页拨开关 → 乐观更新本地 registry → UI 立即重算
  * - SSE feature.changed 事件同步多标签页/多设备（其他端改了开关，本端立即跟随）
  *
@@ -49,8 +50,9 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
       const body = (await res.json()) as { data: FeatureState[] }
       setFeatures(body.data)
     } catch {
-      // 拉取失败（老服务端无此端点/网络问题）：保持 null，isEnabled 按 true 兜底
-      setFeatures(null)
+      // 拉取失败：已有清单保留（避免 SSE 抖动把设置页打回「加载中」）；
+      // 从未成功过则保持 null，isEnabled 按 true 兜底。
+      setFeatures((prev) => prev)
     }
   }, [])
 
