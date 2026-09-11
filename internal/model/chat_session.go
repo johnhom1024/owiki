@@ -7,8 +7,8 @@ import "time"
 // ListSessions 只需元数据，GetSession 才需要事件。
 type ChatSession struct {
 	ID        string    `gorm:"primaryKey;type:varchar(64)" json:"id"`
-	AppName   string    `gorm:"type:varchar(64);index:idx_chat_sess,unique" json:"appName"`
-	UserID    string    `gorm:"type:varchar(64);index:idx_chat_sess,unique" json:"userId"`
+	AppName   string    `gorm:"type:varchar(64);index:idx_chat_sess" json:"appName"`
+	UserID    string    `gorm:"type:varchar(64);index:idx_chat_sess" json:"userId"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updatedAt"`
 	// Title 前端展示名（首条用户消息截断）。

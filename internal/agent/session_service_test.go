@@ -10,6 +10,7 @@ import (
 	"owiki/internal/tools"
 
 	"github.com/glebarez/sqlite"
+	"github.com/google/jsonschema-go/jsonschema"
 	"gorm.io/gorm"
 	"trpc.group/trpc-go/trpc-agent-go/event"
 	trpcmodel "trpc.group/trpc-go/trpc-agent-go/model"
@@ -67,6 +68,10 @@ func TestSessionServiceRoundTrip(t *testing.T) {
 	if got.GetEventCount() != 2 {
 		t.Fatalf("expected 2 events, got %d", got.GetEventCount())
 	}
+	// AppendEvent 必须同步写 sess.Events，runner 下一轮靠这个回灌工具结果
+	if sess.GetEventCount() != 2 {
+		t.Fatalf("in-memory sess should also have 2 events, got %d", sess.GetEventCount())
+	}
 
 	// 会话列表
 	list, err := svc.ListSessions(ctx, session.UserKey{AppName: "owiki", UserID: "admin"})
@@ -85,8 +90,44 @@ func TestSessionServiceRoundTrip(t *testing.T) {
 	if len(evs) != 0 {
 		t.Errorf("events should be gone, got %d", len(evs))
 	}
-	if _, err := svc.GetSession(ctx, key); err != nil {
-		t.Errorf("get after delete should recreate empty session, got %v", err)
+	gotAfter, err := svc.GetSession(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotAfter != nil {
+		t.Errorf("get after delete should return (nil, nil), got %+v", gotAfter)
+	}
+
+	// 同一用户第二条会话必须能建（回归：idx_chat_sess 曾把 app+user 做成 UNIQUE）
+	key2 := session.Key{AppName: "owiki", UserID: "admin", SessionID: "s1-b"}
+	if _, err := svc.CreateSession(ctx, key2, nil); err != nil {
+		t.Fatalf("second session for same user: %v", err)
+	}
+	list2, err := svc.ListSessions(ctx, session.UserKey{AppName: "owiki", UserID: "admin"})
+	if err != nil || len(list2) != 1 {
+		t.Fatalf("after delete s1, expected 1 remaining (s1-b), got %d err=%v", len(list2), err)
+	}
+}
+
+func TestSessionServiceTwoSessionsSameUser(t *testing.T) {
+	db := testDB(t)
+	store, err := repository.NewChatStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewSessionService(store)
+	ctx := context.Background()
+	k1 := session.Key{AppName: "owiki", UserID: "admin", SessionID: "a"}
+	k2 := session.Key{AppName: "owiki", UserID: "admin", SessionID: "b"}
+	if _, err := svc.CreateSession(ctx, k1, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateSession(ctx, k2, nil); err != nil {
+		t.Fatalf("second session: %v", err)
+	}
+	list, err := svc.ListSessions(ctx, session.UserKey{AppName: "owiki", UserID: "admin"})
+	if err != nil || len(list) != 2 {
+		t.Fatalf("expected 2 sessions, got %d err=%v", len(list), err)
 	}
 }
 
@@ -107,6 +148,45 @@ func TestSessionServiceState(t *testing.T) {
 	}
 	if v, ok := got.GetState("k"); !ok || string(v) != "v" {
 		t.Fatalf("state round trip failed: %q %v", v, ok)
+	}
+}
+
+func TestMapEventsSkipsStreamingFinalFullText(t *testing.T) {
+	runID := "r1"
+	partial := &event.Event{Response: &trpcmodel.Response{
+		Object:    trpcmodel.ObjectTypeChatCompletionChunk,
+		IsPartial: true,
+		Choices:   []trpcmodel.Choice{{Delta: trpcmodel.Message{Content: "你好"}}},
+	}}
+	final := &event.Event{Response: &trpcmodel.Response{
+		Object:    trpcmodel.ObjectTypeChatCompletion,
+		IsPartial: false,
+		Choices:   []trpcmodel.Choice{{Message: trpcmodel.Message{Content: "你好"}}},
+	}}
+	p := mapEvents(runID, partial)
+	if len(p) != 1 || p[0].name != "token" {
+		t.Fatalf("partial: %+v", p)
+	}
+	f := mapEvents(runID, final)
+	if len(f) != 0 {
+		t.Fatalf("final full-text must be skipped, got %+v", f)
+	}
+}
+
+func TestSchemaToTrpcNormalizesArrayType(t *testing.T) {
+	s := jsonschema.Schema{}
+	if err := json.Unmarshal([]byte(`{"type":"object","properties":{"x":{"type":["string","null"]}}}`), &s); err != nil {
+		t.Fatal(err)
+	}
+	out, err := schemaToTrpc(&s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == nil || out.Properties == nil || out.Properties["x"] == nil {
+		t.Fatalf("missing properties: %+v", out)
+	}
+	if out.Properties["x"].Type != "string" {
+		t.Fatalf("expected type string, got %q", out.Properties["x"].Type)
 	}
 }
 

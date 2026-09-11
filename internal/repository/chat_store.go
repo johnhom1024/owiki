@@ -28,6 +28,15 @@ func NewChatStore(db *gorm.DB) (*ChatStore, error) {
 	if err := db.AutoMigrate(&model.ChatSession{}, &model.ChatEvent{}); err != nil {
 		return nil, err
 	}
+	// 早期 tag 把 idx_chat_sess 建成 (app_name, user_id) UNIQUE，
+	// 同一用户只能有一条会话。GORM AutoMigrate 不会改已有 UNIQUE，
+	// 这里显式拆掉后按非唯一复合索引重建。
+	if db.Migrator().HasIndex(&model.ChatSession{}, "idx_chat_sess") {
+		_ = db.Migrator().DropIndex(&model.ChatSession{}, "idx_chat_sess")
+	}
+	if err := db.Migrator().CreateIndex(&model.ChatSession{}, "idx_chat_sess"); err != nil {
+		return nil, fmt.Errorf("rebuild idx_chat_sess: %w", err)
+	}
 	return &ChatStore{db: db}, nil
 }
 

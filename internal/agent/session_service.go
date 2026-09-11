@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"owiki/internal/model"
@@ -52,12 +53,14 @@ func (s *sqliteSessionService) CreateSession(ctx context.Context, key session.Ke
 }
 
 // GetSession 实现 session.Service：元数据 + 事件流 + 状态全量加载。
+// 不存在时返回 (nil, nil)——trpc runner.getOrCreateSession 会随后 CreateSession。
 func (s *sqliteSessionService) GetSession(ctx context.Context, key session.Key, _ ...session.Option) (*session.Session, error) {
 	appName, userID, sessionID := sessKeyToModel(key)
 	if _, err := s.store.GetSession(ctx, appName, userID, sessionID); err != nil {
-		// 不存在则建（trpc 语义：GetSession 是 get-or-create 的读侧配合，
-		// runner 首次 Run 前会先 Get；建空会话保证后续 AppendEvent 有落点）
-		return s.CreateSession(ctx, key, nil)
+		if errors.Is(err, repository.ErrChatSessionNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	events, err := s.store.LoadEvents(ctx, sessionID)
 	if err != nil {
@@ -110,14 +113,20 @@ func (s *sqliteSessionService) DeleteSession(ctx context.Context, key session.Ke
 	return s.store.DeleteSessionState(ctx, sessionID)
 }
 
-// AppendEvent 实现 session.Service：事件序列化落库 + 会话 Touch。
-func (s *sqliteSessionService) AppendEvent(ctx context.Context, sess *session.Session, e *event.Event, _ ...session.Option) error {
+// AppendEvent 实现 session.Service：先更新内存会话（runner 下一轮 LLM
+// 读 sess.Events），再序列化落库 + Touch。漏掉 UpdateUserSession 会让
+// 工具结果无法回灌，模型会反复调同一个工具。
+func (s *sqliteSessionService) AppendEvent(ctx context.Context, sess *session.Session, e *event.Event, opts ...session.Option) error {
+	if sess == nil || e == nil {
+		return nil
+	}
+	sess.UpdateUserSession(e, opts...)
 	b, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
 	title := ""
-	if e != nil && e.Response != nil && len(e.Response.Choices) > 0 &&
+	if e.Response != nil && len(e.Response.Choices) > 0 &&
 		e.Response.Choices[0].Message.Role == "user" {
 		title = truncateRunes(e.Response.Choices[0].Message.Content, 60)
 	}

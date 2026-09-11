@@ -212,11 +212,35 @@ func TestE2EChatPlainRound(t *testing.T) {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 	sse := w.Body.String()
-	for _, want := range []string{"event:start", "event:token", "你好，笔记库共 3 篇", "event:done"} {
+	for _, want := range []string{"event:start", "event:token", "event:done"} {
 		if !strings.Contains(sse, want) {
 			t.Errorf("SSE missing %q in:\n%s", want, sse)
 		}
 	}
+	if concatTokens(sse) != "你好，笔记库共 3 篇" {
+		t.Errorf("concatenated tokens = %q, sse:\n%s", concatTokens(sse), sse)
+	}
+	// 流式收尾的 chat.completion 全文不得再推一遍
+	if strings.Count(sse, "你好，笔记库共 3 篇") > 0 && strings.Count(concatTokens(sse), "你好") > 1 {
+		t.Errorf("answer duplicated in tokens: %q", concatTokens(sse))
+	}
+}
+
+func concatTokens(sse string) string {
+	var out strings.Builder
+	for _, line := range strings.Split(sse, "\n") {
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		var m map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(line[5:])), &m); err != nil {
+			continue
+		}
+		if t, ok := m["text"].(string); ok {
+			out.WriteString(t)
+		}
+	}
+	return out.String()
 }
 
 // TestE2EChatToolRound 工具调用循环：tool_call → tool_result → 最终文本
@@ -237,8 +261,8 @@ func TestE2EChatToolRound(t *testing.T) {
 	if !strings.Contains(sse, "tool_call") {
 		t.Errorf("missing tool_call event:\n%s", sse)
 	}
-	if !strings.Contains(sse, "完成") {
-		t.Errorf("missing final text:\n%s", sse)
+	if concatTokens(sse) != "完成" {
+		t.Errorf("missing final text (got %q):\n%s", concatTokens(sse), sse)
 	}
 }
 
@@ -357,8 +381,8 @@ func TestE2EConfirmFlow(t *testing.T) {
 	if !strings.Contains(sse, "event:confirm") {
 		t.Errorf("missing confirm frame:\n%s", sse)
 	}
-	if !strings.Contains(sse, "已删除") {
-		t.Errorf("missing final text after approval:\n%s", sse)
+	if concatTokens(sse) != "已删除" {
+		t.Errorf("missing final text after approval (got %q):\n%s", concatTokens(sse), sse)
 	}
 	if !dangerExecuted() {
 		t.Error("destructive tool should have executed after approval")

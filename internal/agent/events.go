@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"trpc.group/trpc-go/trpc-agent-go/event"
+	trpcmodel "trpc.group/trpc-go/trpc-agent-go/model"
 )
 
 // sseEvent 映射后的 SSE 帧名与载荷。
@@ -38,7 +39,7 @@ func mapEvents(runID string, ev *event.Event) []sseEvent {
 		for _, tc := range msg.ToolCalls {
 			out = append(out, sseEvent{"tool_call", gin.H{
 				"runId": runID, "id": tc.ID, "name": tc.Function.Name,
-				"arguments": tc.Function.Arguments,
+				"arguments": string(tc.Function.Arguments),
 			}})
 		}
 		return out
@@ -58,12 +59,13 @@ func mapEvents(runID string, ev *event.Event) []sseEvent {
 		return out
 	}
 
-	// 文本 token（流式增量 / 完整消息）
+	// 文本 token：流式增量走 Delta；openai 流结束还会再发一帧
+	// Object=chat.completion 带全文 Message——跳过，避免前端把答案拼两遍。
 	if len(rsp.Choices) > 0 {
-		msg := rsp.Choices[0].Message
 		delta := rsp.Choices[0].Delta
+		msg := rsp.Choices[0].Message
 		text := delta.Content
-		if text == "" {
+		if text == "" && rsp.Object != trpcmodel.ObjectTypeChatCompletion {
 			text = msg.Content
 		}
 		if text != "" {

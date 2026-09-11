@@ -53,6 +53,8 @@ type bridgedTool struct {
 
 // schemaToTrpc 把 google/jsonschema-go 的 schema 转成 trpc tool.Schema。
 // 字段名同构，走 JSON 往返最省事且不会漏新增字段。
+// 联合类型归一化：google 库对可空字段生成 type 数组（如 ["string","null"]），
+// trpc Schema.Type 是纯 string——取第一个非 "null" 元素（信息量最大的主类型）。
 func schemaToTrpc(s interface {
 	MarshalJSON() ([]byte, error)
 }) (*tool.Schema, error) {
@@ -63,11 +65,50 @@ func schemaToTrpc(s interface {
 	if err != nil {
 		return nil, err
 	}
+	var raw map[string]any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, err
+	}
+	normalizeSchemaTypes(raw)
+	nb, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
 	var out tool.Schema
-	if err := json.Unmarshal(b, &out); err != nil {
+	if err := json.Unmarshal(nb, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// normalizeSchemaTypes 递归把 type 数组折叠成单值。
+func normalizeSchemaTypes(m map[string]any) {
+	if arr, ok := m["type"].([]any); ok && len(arr) > 0 {
+		pick := ""
+		for _, v := range arr {
+			if s, ok := v.(string); ok && s != "null" {
+				pick = s
+				break
+			}
+		}
+		if pick == "" {
+			delete(m, "type")
+		} else {
+			m["type"] = pick
+		}
+	}
+	for _, v := range m {
+		switch x := v.(type) {
+		case map[string]any:
+			normalizeSchemaTypes(x)
+		case []any:
+			for _, item := range x {
+				if sub, ok := item.(map[string]any); ok {
+					normalizeSchemaTypes(sub)
+				}
+			}
+		}
+	}
 }
 
 // Declaration 实现 tool.Tool：同一份 Name/Description/Schema 喂 agent。
