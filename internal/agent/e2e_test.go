@@ -266,6 +266,46 @@ func TestE2EChatToolRound(t *testing.T) {
 	}
 }
 
+func openaiErrorReply(message string) string {
+	b, _ := json.Marshal(map[string]any{
+		"error": map[string]any{"message": message, "type": "server_error"},
+	})
+	return string(b)
+}
+
+func mockOpenAIError(t *testing.T, status int, body string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		fmt.Fprint(w, body)
+	}))
+}
+
+// TestE2EChatProviderError 上游失败必须走 error 帧，不能把 runner 占位英文当 token。
+func TestE2EChatProviderError(t *testing.T) {
+	oa := mockOpenAIError(t, 500, openaiErrorReply("no healthy upstream"))
+	defer oa.Close()
+	r, _ := newTestRouter(t, oa.URL)
+
+	body, _ := json.Marshal(map[string]string{"message": "hi"})
+	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/s-err/stream", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	sse := w.Body.String()
+	if !strings.Contains(sse, "event:error") {
+		t.Fatalf("missing error frame:\n%s", sse)
+	}
+	if strings.Contains(sse, "event:token") {
+		t.Fatalf("placeholder must not be a token:\n%s", sse)
+	}
+}
+
 // TestE2ENotReady503 未配置/未测通：流端点 503
 func TestE2ENotReady503(t *testing.T) {
 	oa := mockOpenAI(t, nil)

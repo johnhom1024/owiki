@@ -30,6 +30,43 @@ func mapEvents(runID string, ev *event.Event) []sseEvent {
 	rsp := ev.Response
 	var out []sseEvent
 
+	// runner 在 Response.Error 且无正文时会填一句英文占位
+	// 「An error occurred during execution…」。那是兜底文案，不是模型输出：
+	// 抽真实错误走 error 帧，避免前端当成助手回复。
+	const placeholder = "An error occurred during execution. Please contact the service provider."
+	if rsp.Error != nil {
+		msg := strings.TrimSpace(rsp.Error.Message)
+		if msg == "" {
+			msg = placeholder
+		}
+		if rsp.Error.Type != "" {
+			msg = rsp.Error.Type + ": " + msg
+		}
+		out = append(out, sseEvent{"error", gin.H{"runId": runID, "error": msg}})
+		return out
+	}
+	if ev.IsError() || ev.IsTerminalError() {
+		text := ""
+		if len(rsp.Choices) > 0 {
+			text = strings.TrimSpace(rsp.Choices[0].Message.Content)
+			if text == "" {
+				text = strings.TrimSpace(rsp.Choices[0].Delta.Content)
+			}
+		}
+		if text == "" {
+			text = placeholder
+		}
+		out = append(out, sseEvent{"error", gin.H{"runId": runID, "error": text}})
+		return out
+	}
+	if len(rsp.Choices) > 0 {
+		c0 := rsp.Choices[0]
+		if c0.Message.Content == placeholder || c0.Delta.Content == placeholder {
+			out = append(out, sseEvent{"error", gin.H{"runId": runID, "error": placeholder}})
+			return out
+		}
+	}
+
 	// 工具调用（模型要求调工具）
 	if rsp.IsToolCallResponse() && len(rsp.Choices) > 0 {
 		msg := rsp.Choices[0].Message

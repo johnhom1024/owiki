@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -156,6 +157,10 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 			return
 		}
 		for ev := range evCh {
+			if ev != nil && ev.Response != nil && ev.Response.Error != nil {
+				log.Printf("agent stream error sid=%s run=%s type=%s msg=%s",
+					sid, runID, ev.Response.Error.Type, ev.Response.Error.Message)
+			}
 			for _, sse := range mapEvents(runID, ev) {
 				c.SSEvent(sse.name, sse.data)
 			}
