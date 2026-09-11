@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 /**
- * 内置 AI 对话面板（右侧 Sheet 内容）。
+ * 内置 AI 对话面板（右侧占位栏内容）。
  *
  * 协议（POST /api/chat/sessions/:sid/stream，SSE 响应）：
  *   start {runId}
@@ -55,7 +55,21 @@ interface PendingConfirm {
 
 export function ChatPanel() {
   const { t } = useLang()
-  const [sessionId] = useState(() => 's-' + Math.random().toString(36).slice(2, 10))
+  const [sessionId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('owiki-chat-session')
+      if (saved) return saved
+    } catch {
+      /* ignore */
+    }
+    const id = 's-' + Math.random().toString(36).slice(2, 10)
+    try {
+      localStorage.setItem('owiki-chat-session', id)
+    } catch {
+      /* ignore */
+    }
+    return id
+  })
   const [messages, setMessages] = useState<Msg[]>([])
   const [tools, setTools] = useState<ToolActivity[]>([])
   const [streaming, setStreaming] = useState(false)

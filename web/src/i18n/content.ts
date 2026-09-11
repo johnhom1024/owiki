@@ -331,11 +331,13 @@ const zh = {
     confirmAllow: '允许',
     confirmDeny: '拒绝',
     settingsTitle: 'AI 对话配置',
-    settingsHint: '接任何 OpenAI 兼容端点：填好三项并测试通过后，右侧出现对话入口',
+    settingsHint: '接任何 OpenAI 兼容端点：填好三项并测试通过后，页面右侧出现对话栏',
     keyKeepHint: '已保存（留空保持不变）',
     testBtn: '测试连接',
-    readyHint: '已就绪，右侧可对话',
-    notReadyHint: '未就绪：保存并测试通过后入口出现',
+    readyHint: '已就绪，右侧栏可对话',
+    notReadyHint: '未就绪：保存并测试通过后右侧栏出现',
+    collapse: '收起对话栏',
+    expand: '展开对话栏',
   },
 
   settings: {
@@ -778,11 +780,13 @@ const en: typeof zh = {
     confirmAllow: 'Allow',
     confirmDeny: 'Deny',
     settingsTitle: 'AI Chat Setup',
-    settingsHint: 'Works with any OpenAI-compatible endpoint: fill in the three fields and pass the test to reveal the chat entry',
+    settingsHint: 'Works with any OpenAI-compatible endpoint: fill in the three fields and pass the test to reveal the right sidebar',
     keyKeepHint: 'Saved (leave blank to keep)',
     testBtn: 'Test',
-    readyHint: 'Ready — chat from the right panel',
-    notReadyHint: 'Not ready: save and pass the test to show the entry',
+    readyHint: 'Ready — chat from the right sidebar',
+    notReadyHint: 'Not ready: save and pass the test to show the sidebar',
+    collapse: 'Collapse chat',
+    expand: 'Expand chat',
   },
 
   settings: {

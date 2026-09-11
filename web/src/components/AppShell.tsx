@@ -307,7 +307,6 @@ function SidebarBody({
         />
       )}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <ChatEntry />
     </div>
   )
 }
@@ -331,7 +330,7 @@ function StatusBar({
   const onlineClients = vaults.reduce((sum, v) => sum + v.clients, 0)
 
   return (
-    <div className="text-muted-foreground pointer-events-none absolute right-0 bottom-0 z-10 flex items-center gap-3 px-3 py-1 text-[11px] select-none">
+    <div className="text-muted-foreground flex shrink-0 items-center justify-end gap-3 border-t px-3 py-1 text-[11px] select-none">
       {syncing && (
         <span className="flex items-center gap-1.5">
           <span className="bg-primary inline-block size-1.5 animate-pulse rounded-full" />
@@ -422,9 +421,11 @@ export function AppShell({
 
         <main className="flex h-full min-h-0 flex-col overflow-hidden pt-12 md:pt-0">
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          <StatusBar vaults={vaults} syncProgress={syncProgress} />
         </main>
-        <StatusBar vaults={vaults} syncProgress={syncProgress} />
       </div>
+
+      <ChatEntry />
     </div>
   )
 }
