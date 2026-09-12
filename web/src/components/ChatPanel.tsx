@@ -3,17 +3,18 @@ import { useLang } from '@/i18n/LangProvider'
 import ReactMarkdown from 'react-markdown'
 import {
   AlertTriangle,
+  ArrowUp,
   Brain,
   Check,
   ChevronDown,
   Loader2,
-  Send,
   Sparkles,
+  Square,
   Wrench,
   X,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   applyEvent,
   addUserItem,
@@ -58,8 +59,16 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
   const [input, setInput] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const composingRef = useRef(false)
 
-  const busy = state.running || !!state.confirm
+  // textarea 自动增高（DeepSeek 式）：内容变化即重算，上限 40vh
+  useEffect(() => {
+    const ta = taRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, window.innerHeight * 0.4) + 'px'
+  }, [input])
 
   // 历史回放（AG-UI 事件数组 → 时间线）
   useEffect(() => {
@@ -85,7 +94,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
 
   const send = useCallback(async () => {
     const text = input.trim()
-    if (!text || busy) return
+    if (!text || state.running || !!state.confirm) return
     setInput('')
     dispatch({ t: 'user', text })
     const ac = new AbortController()
@@ -124,7 +133,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     } finally {
       abortRef.current = null
     }
-  }, [input, busy, sessionId])
+  }, [input, state.running, state.confirm, sessionId])
 
   const answerConfirm = useCallback(
     async (approved: boolean) => {
@@ -189,26 +198,69 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
-      {/* 输入区 */}
-      <form
-        className="border-t p-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void send()
-        }}
-      >
-        <div className="flex gap-2">
-          <Input
+      {/* 输入区（DeepSeek 式：圆角容器 + 框内右下角按钮） */}
+      <div className="border-t p-3">
+        <div
+          className={cn(
+            'focus-within:border-primary/60 bg-muted/50 flex flex-col gap-2 rounded-xl border px-3 py-2.5',
+            'transition-colors',
+          )}
+        >
+          <textarea
+            ref={taRef}
             value={input}
+            rows={1}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={busy ? t.chat.thinking : t.chat.placeholder}
-            disabled={busy}
+            onCompositionStart={() => (composingRef.current = true)}
+            onCompositionEnd={() => (composingRef.current = false)}
+            onKeyDown={(e) => {
+              // Enter 发送 / Shift+Enter 换行；输入法组合中不发送
+              if (e.key === 'Enter' && !e.shiftKey && !composingRef.current) {
+                e.preventDefault()
+                void send()
+              }
+            }}
+            placeholder={state.running ? t.chat.thinking : t.chat.placeholder}
+            disabled={!!state.confirm}
+            className={cn(
+              'placeholder:text-muted-foreground max-h-[40vh] min-h-[1.5rem] w-full resize-none',
+              'border-0 bg-transparent text-sm leading-relaxed outline-none',
+              'focus-visible:ring-0 focus-visible:ring-offset-0',
+              !!state.confirm && 'opacity-60',
+            )}
           />
-          <Button type="submit" size="icon" disabled={!input.trim() || busy}>
-            {state.running ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </Button>
+          <div className="flex items-center justify-end">
+            {state.running ? (
+              <button
+                type="button"
+                onClick={() => abortRef.current?.abort()}
+                title={t.chat.stop}
+                className="bg-muted text-muted-foreground hover:bg-muted/80 flex size-8 items-center justify-center rounded-full transition-colors"
+              >
+                <Square className="size-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={!input.trim()}
+                title={t.chat.send}
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-full transition-all',
+                  input.trim()
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50',
+                )}
+              >
+                <ArrowUp className="size-4" strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
         </div>
-      </form>
+        <p className="text-muted-foreground mt-1.5 px-1 text-[10px]">
+          {t.chat.inputHint}
+        </p>
+      </div>
     </div>
   )
 }
