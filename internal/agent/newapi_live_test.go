@@ -111,13 +111,13 @@ func TestLiveNewAPIAgentStream(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, sse)
 	}
-	if strings.Contains(sse, "event:error") {
+	if strings.Contains(sse, "\"RUN_ERROR\"") {
 		t.Fatalf("stream error (new-api/runner 未打通):\n%s", sse)
 	}
-	if !strings.Contains(sse, "event:token") {
-		t.Fatalf("no token from new-api:\n%s", sse)
+	if !strings.Contains(sse, "\"TEXT_MESSAGE_CONTENT\"") {
+		t.Fatalf("no text content from new-api:\n%s", sse)
 	}
-	if concatTokens(sse) == "" {
-		t.Fatalf("empty tokens:\n%s", sse)
+	if aguiText(sse) == "" {
+		t.Fatalf("empty text:\n%s", sse)
 	}
 }

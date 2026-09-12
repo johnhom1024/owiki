@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"slices"
 	"context"
 	"encoding/json"
 	"time"
@@ -212,21 +213,22 @@ func TestE2EChatPlainRound(t *testing.T) {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 	sse := w.Body.String()
-	for _, want := range []string{"event:start", "event:token", "event:done"} {
-		if !strings.Contains(sse, want) {
+	types := aguiTypes(sse)
+	for _, want := range []string{"RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_FINISHED"} {
+		if !slices.Contains(types, want) {
 			t.Errorf("SSE missing %q in:\n%s", want, sse)
 		}
 	}
-	if concatTokens(sse) != "你好，笔记库共 3 篇" {
-		t.Errorf("concatenated tokens = %q, sse:\n%s", concatTokens(sse), sse)
+	if got := aguiText(sse); got != "你好，笔记库共 3 篇" {
+		t.Errorf("text = %q, sse:\n%s", got, sse)
 	}
-	// 流式收尾的 chat.completion 全文不得再推一遍
-	if strings.Count(sse, "你好，笔记库共 3 篇") > 0 && strings.Count(concatTokens(sse), "你好") > 1 {
-		t.Errorf("answer duplicated in tokens: %q", concatTokens(sse))
+	if n := strings.Count(sse, "\"TEXT_MESSAGE_START\""); n != 1 {
+		t.Errorf("expected exactly 1 TEXT_MESSAGE_START, got %d: %s", n, sse)
 	}
 }
 
-func concatTokens(sse string) string {
+// aguiText 从 AG-UI SSE 流提取 TEXT_MESSAGE_CONTENT 拼接的全文。
+func aguiText(sse string) string {
 	var out strings.Builder
 	for _, line := range strings.Split(sse, "\n") {
 		if !strings.HasPrefix(line, "data:") {
@@ -236,11 +238,31 @@ func concatTokens(sse string) string {
 		if err := json.Unmarshal([]byte(strings.TrimSpace(line[5:])), &m); err != nil {
 			continue
 		}
-		if t, ok := m["text"].(string); ok {
-			out.WriteString(t)
+		if m["type"] == "TEXT_MESSAGE_CONTENT" {
+			if d, ok := m["delta"].(string); ok {
+				out.WriteString(d)
+			}
 		}
 	}
 	return out.String()
+}
+
+// aguiTypes 从 AG-UI SSE 流提取事件 type 序列。
+func aguiTypes(sse string) []string {
+	var out []string
+	for _, line := range strings.Split(sse, "\n") {
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		var m map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(line[5:])), &m); err != nil {
+			continue
+		}
+		if t, ok := m["type"].(string); ok {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // TestE2EChatToolRound 工具调用循环：tool_call → tool_result → 最终文本
@@ -258,11 +280,14 @@ func TestE2EChatToolRound(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	sse := w.Body.String()
-	if !strings.Contains(sse, "tool_call") {
-		t.Errorf("missing tool_call event:\n%s", sse)
+	types := aguiTypes(sse)
+	for _, want := range []string{"TOOL_CALL_START", "TOOL_CALL_ARGS", "TOOL_CALL_END", "TOOL_CALL_RESULT"} {
+		if !slices.Contains(types, want) {
+			t.Errorf("missing %s:\n%s", want, sse)
+		}
 	}
-	if concatTokens(sse) != "完成" {
-		t.Errorf("missing final text (got %q):\n%s", concatTokens(sse), sse)
+	if got := aguiText(sse); got != "完成" {
+		t.Errorf("missing final text (got %q):\n%s", got, sse)
 	}
 }
 
@@ -298,11 +323,11 @@ func TestE2EChatProviderError(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	sse := w.Body.String()
-	if !strings.Contains(sse, "event:error") {
-		t.Fatalf("missing error frame:\n%s", sse)
+	if !slices.Contains(aguiTypes(sse), "RUN_ERROR") {
+		t.Fatalf("missing RUN_ERROR:\n%s", sse)
 	}
-	if strings.Contains(sse, "event:token") {
-		t.Fatalf("placeholder must not be a token:\n%s", sse)
+	if slices.Contains(aguiTypes(sse), "TEXT_MESSAGE_START") {
+		t.Fatalf("error path must not emit text message:\n%s", sse)
 	}
 }
 
@@ -418,11 +443,11 @@ func TestE2EConfirmFlow(t *testing.T) {
 	<-resolved
 
 	sse := w.Body.String()
-	if !strings.Contains(sse, "event:confirm") {
-		t.Errorf("missing confirm frame:\n%s", sse)
+	if !strings.Contains(sse, "\"name\":\"tool_confirm\"") {
+		t.Errorf("missing tool_confirm custom event:\n%s", sse)
 	}
-	if concatTokens(sse) != "已删除" {
-		t.Errorf("missing final text after approval (got %q):\n%s", concatTokens(sse), sse)
+	if got := aguiText(sse); got != "已删除" {
+		t.Errorf("missing final text after approval (got %q):\n%s", got, sse)
 	}
 	if !dangerExecuted() {
 		t.Error("destructive tool should have executed after approval")

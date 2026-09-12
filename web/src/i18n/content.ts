@@ -338,6 +338,8 @@ const zh = {
     notReadyHint: '未就绪：保存并测试通过后右侧栏出现',
     collapse: '收起对话栏',
     expand: '展开对话栏',
+    thinkingLabel: '思考过程',
+    thinkingPending: '思考中…',
   },
 
   settings: {
@@ -787,6 +789,8 @@ const en: typeof zh = {
     notReadyHint: 'Not ready: save and pass the test to show the sidebar',
     collapse: 'Collapse chat',
     expand: 'Expand chat',
+    thinkingLabel: 'Reasoning',
+    thinkingPending: 'Thinking…',
   },
 
   settings: {

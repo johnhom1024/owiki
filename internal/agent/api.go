@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"owiki/internal/model"
 	"owiki/internal/repository"
 
+	agui "github.com/ag-ui-protocol/ag-ui/sdks/community/go/pkg/core/events"
 	"github.com/gin-gonic/gin"
 	"trpc.group/trpc-go/trpc-agent-go/event"
 	trpcmodel "trpc.group/trpc-go/trpc-agent-go/model"
@@ -18,10 +20,12 @@ import (
 )
 
 // RegisterAPI 挂内置 AI 对话的全部端点（需登录 + feature 门禁由路由组外层套）。
+// 事件协议：AG-UI（https://ag-ui.com）。SSE 帧不带 event: 行，type 在 data JSON 里；
+// 前端解析见 web/src/lib/agui/。
 func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISettingsRepo) {
 	g := api.Group("/chat")
 
-	// 配置读写
+	// ---- 配置读写（语义与旧版一致） ----
 	g.GET("/settings", func(c *gin.Context) {
 		a, err := settings.Load(c.Request.Context())
 		if err != nil {
@@ -111,7 +115,6 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 			}
 			_ = settings.Save(c.Request.Context(), saved)
 			mgr.Invalidate()
-			a = saved
 		}
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"ok": false, "error": err.Error()})
@@ -120,7 +123,7 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 		c.JSON(http.StatusOK, gin.H{"ok": true, "model": mdl})
 	})
 
-	// 对话流（SSE）
+	// ---- 对话流（AG-UI over SSE） ----
 	g.POST("/sessions/:sid/stream", func(c *gin.Context) {
 		sid := c.Param("sid")
 		var body struct {
@@ -136,24 +139,49 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 			return
 		}
 		runID := newRunID()
-		ctx := WithRunID(c.Request.Context(), runID)
+		runCtx, cancelRun := context.WithCancel(WithRunID(c.Request.Context(), runID))
+		defer cancelRun()
 
 		c.Header("Content-Type", "text/event-stream")
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
 		c.Header("X-Accel-Buffering", "no")
-		// 危险工具确认帧：broker 挂起前经此回调直接推到本流
-		mgr.Broker().SetEmitter(func(name string, data any) {
-			c.SSEvent(name, data)
-			c.Writer.Flush()
-		})
-		defer mgr.Broker().SetEmitter(nil)
-		c.SSEvent("start", gin.H{"runId": runID})
-		c.Writer.Flush()
 
-		evCh, err := r.Run(ctx, UserID, sid, trpcmodel.NewUserMessage(body.Message))
+		em := NewAgentEmitter(runCtx, c.Writer, cancelRun)
+		// 确认帧直写本流：per-run emitter（多标签页互不串）
+		mgr.Broker().SetEmitter(runID, func(name string, data any) {
+			em.Write(agui.NewCustomEvent(name, agui.WithValue(data)))
+			em.Flush()
+		})
+		defer mgr.Broker().SetEmitter(runID, nil)
+
+		mapper := newAGUIMapper(runID, sid)
+		em.Write(mapper.Started())
+		em.Flush()
+
+		// 心跳：长工具执行期间防代理掐断（每 15s 一条注释帧）
+		heartbeat := time.NewTicker(15 * time.Second)
+		defer heartbeat.Stop()
+		hbDone := make(chan struct{})
+		defer close(hbDone)
+		go func() {
+			for {
+				select {
+				case <-hbDone:
+					return
+				case <-heartbeat.C:
+					if _, err := c.Writer.WriteString(": ping\n\n"); err == nil {
+						c.Writer.Flush()
+					}
+				}
+			}
+		}()
+
+		evCh, err := r.Run(runCtx, UserID, sid, trpcmodel.NewUserMessage(body.Message))
 		if err != nil {
-			c.SSEvent("error", gin.H{"error": err.Error()})
+			em.Write(mapper.Error(err.Error()))
+			em.WriteAll(mapper.Finished())
+			em.Flush()
 			return
 		}
 		for ev := range evCh {
@@ -161,23 +189,21 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 				log.Printf("agent stream error sid=%s run=%s type=%s msg=%s",
 					sid, runID, ev.Response.Error.Type, ev.Response.Error.Message)
 			}
-			for _, sse := range mapEvents(runID, ev) {
-				c.SSEvent(sse.name, sse.data)
-			}
-			c.Writer.Flush()
-			if ev.IsTerminalError() {
-				break
+			em.WriteAll(mapper.MapEvent(destructureTrpc(ev)))
+			em.Flush()
+			if em.Err() != nil {
+				break // 客户端断开，写侧已 cancel run ctx
 			}
 		}
-		// 结束：补发仍未决的 confirm 撤销 + done
+		// 结束：补发仍未决的 confirm 撤销 + RUN_FINISHED
 		if pending := mgr.Broker().Pending(runID); pending != nil {
 			mgr.Broker().Resolve(runID, false)
 		}
-		c.SSEvent("done", gin.H{"runId": runID})
-		c.Writer.Flush()
+		em.WriteAll(mapper.Finished())
+		em.Flush()
 	})
 
-	// 危险工具确认
+	// ---- 危险工具确认 ----
 	g.POST("/runs/:runId/confirm", func(c *gin.Context) {
 		runID := c.Param("runId")
 		var body struct {
@@ -194,7 +220,7 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	// 会话列表
+	// ---- 会话列表 ----
 	g.GET("/sessions", func(c *gin.Context) {
 		svc := NewSessionService(mgr.store)
 		sessions, err := svc.ListSessions(c.Request.Context(), userKey())
@@ -209,29 +235,34 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 		c.JSON(http.StatusOK, gin.H{"data": out})
 	})
 
-	// 会话历史（刷新后回放）
+	// ---- 会话历史回放：持久化 trpc 事件重放过同一套 AG-UI 映射 ----
+	// 与直播同代码路径——工具活动/reasoning 刷新后不丢。
 	g.GET("/sessions/:sid/events", func(c *gin.Context) {
 		sid := c.Param("sid")
-		events, err := mgr.store.LoadEvents(c.Request.Context(), sid)
+		raws, err := mgr.store.LoadEvents(c.Request.Context(), sid)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		mapper := newAGUIMapper("replay", sid)
 		var out []json.RawMessage
-		for _, raw := range events {
+		for _, raw := range raws {
 			var e event.Event
 			if err := json.Unmarshal(raw, &e); err != nil {
 				continue
 			}
-			if sse := replayableEvent(e); sse != nil {
-				b, _ := json.Marshal(sse)
+			for _, ev := range mapper.MapEvent(destructureTrpc(&e)) {
+				b, err := ev.ToJSON()
+				if err != nil {
+					continue
+				}
 				out = append(out, b)
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{"data": out})
 	})
 
-	// 删会话
+	// ---- 删会话 ----
 	g.DELETE("/sessions/:sid", func(c *gin.Context) {
 		sid := c.Param("sid")
 		if err := mgr.store.DeleteSession(c.Request.Context(), AppName, UserID, sid); err != nil {

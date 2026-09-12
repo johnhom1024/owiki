@@ -179,8 +179,8 @@ func TestSessionServiceState(t *testing.T) {
 	}
 }
 
-func TestMapEventsSkipsStreamingFinalFullText(t *testing.T) {
-	runID := "r1"
+func TestAGUIMapperSkipsStreamingFinalFullText(t *testing.T) {
+	m := newAGUIMapper("r1", "t1")
 	partial := &event.Event{Response: &trpcmodel.Response{
 		Object:    trpcmodel.ObjectTypeChatCompletionChunk,
 		IsPartial: true,
@@ -191,11 +191,11 @@ func TestMapEventsSkipsStreamingFinalFullText(t *testing.T) {
 		IsPartial: false,
 		Choices:   []trpcmodel.Choice{{Message: trpcmodel.Message{Content: "你好"}}},
 	}}
-	p := mapEvents(runID, partial)
-	if len(p) != 1 || p[0].name != "token" {
+	p := m.MapEvent(destructureTrpc(partial))
+	if len(p) != 2 { // START + CONTENT
 		t.Fatalf("partial: %+v", p)
 	}
-	f := mapEvents(runID, final)
+	f := m.MapEvent(destructureTrpc(final))
 	if len(f) != 0 {
 		t.Fatalf("final full-text must be skipped, got %+v", f)
 	}

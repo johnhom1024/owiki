@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useLang } from '@/i18n/LangProvider'
 import ReactMarkdown from 'react-markdown'
 import {
   AlertTriangle,
+  Brain,
   Check,
   ChevronDown,
   Loader2,
@@ -11,46 +12,44 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  applyEvent,
+  addUserItem,
+  initialChatState,
+  type ChatState,
+  type TimelineItem,
+} from '@/lib/agui'
+import { feedSSE, flushSSE, newSSEParserState, parseAguiEvent } from '@/lib/sse'
 
 /**
- * 内置 AI 对话面板（右侧占位栏内容）。
+ * 内置 AI 对话面板（右侧占位栏内容）。AG-UI 协议。
  *
- * 协议（POST /api/chat/sessions/:sid/stream，SSE 响应）：
- *   start {runId}
- *   token {runId, text, partial}
- *   tool_call {runId, id, name, arguments}
- *   tool_result {runId, toolId, toolName, content}
- *   done {runId}
- *   error {error}
- * 危险工具确认：工具执行前服务端不推 confirm 事件，而是通过
- * pending 状态轮询——首版简化为：tool_call 出现 + 3s 内无 tool_result
- * 且面板顶部落下确认条（服务端 broker 挂起时 Resolve 端点可用）。
- * 实际实现：服务端在 mapEvents 外由 BeforeToolCallback 直接写 SSE
- * confirm 帧（见下 onConfirm 事件）。
+ * 状态模型：单一 TimelineItem[] 时间线（agui.ts 的 applyEvent 是唯一转移入口）。
+ * - 工具卡片插在它发生的位置，后续文字新开 assistant 条目排在后面
+ * - reasoning 折叠面板（REASONING_*）
+ * - TOOL_CALL_RESULT 按 toolCallId 精确回填
+ * - 危险工具确认走 CUSTOM tool_confirm / tool_confirm_result
  */
 
-interface Msg {
-  role: 'user' | 'assistant'
-  text: string
-  /** 流式进行中（后续 token 追加到本条） */
-  streaming?: boolean
-}
+type Action =
+  | { t: 'event'; ev: Record<string, any> }
+  | { t: 'user'; text: string }
+  | { t: 'replace'; state: ChatState }
+  | { t: 'reset' }
 
-interface ToolActivity {
-  id: string
-  name: string
-  args: string
-  state: 'calling' | 'done' | 'denied'
-  result?: string
-}
-
-interface PendingConfirm {
-  runId: string
-  tool: string
-  args: string
+function reducer(state: ChatState, action: Action): ChatState {
+  switch (action.t) {
+    case 'event':
+      return applyEvent(state, action.ev as any)
+    case 'user':
+      return addUserItem(state, action.text)
+    case 'replace':
+      return action.state
+    case 'reset':
+      return { ...initialChatState }
+  }
 }
 
 export function ChatPanel() {
@@ -70,43 +69,40 @@ export function ChatPanel() {
     }
     return id
   })
-  const [messages, setMessages] = useState<Msg[]>([])
-  const [tools, setTools] = useState<ToolActivity[]>([])
-  const [streaming, setStreaming] = useState(false)
-  const [confirm, setConfirm] = useState<PendingConfirm | null>(null)
+  const [state, dispatch] = useReducer(reducer, initialChatState)
   const [input, setInput] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // 历史回放
+  const busy = state.running || !!state.confirm
+
+  // 历史回放（AG-UI 事件数组 → 时间线）
   useEffect(() => {
+    let cancelled = false
     fetch(`/api/chat/sessions/${sessionId}/events`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((b: { data: Array<{ name: string; data: any }> }) => {
-        const msgs: Msg[] = []
-        for (const ev of b.data ?? []) {
-          if (ev.name === 'message' && ev.data) {
-            msgs.push({ role: ev.data.role === 'user' ? 'user' : 'assistant', text: ev.data.text })
-          }
-        }
-        if (msgs.length) setMessages(msgs)
+      .then((b: { data: Array<Record<string, any>> }) => {
+        if (cancelled) return
+        let s = initialChatState
+        for (const ev of b.data ?? []) s = applyEvent(s, ev as any)
+        dispatch({ t: 'replace', state: s })
       })
       .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [sessionId])
 
   // 自动滚底
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
-  }, [messages, tools])
+  }, [state.items])
 
   const send = useCallback(async () => {
     const text = input.trim()
-    if (!text || streaming) return
+    if (!text || busy) return
     setInput('')
-    setError(null)
-    setMessages((m) => [...m, { role: 'user', text }])
-    setStreaming(true)
+    dispatch({ t: 'user', text })
     const ac = new AbortController()
     abortRef.current = ac
     try {
@@ -123,93 +119,36 @@ export function ChatPanel() {
       }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let buf = ''
+      const sse = newSSEParserState()
       for (;;) {
         const { done, value } = await reader.read()
         if (done) break
-        buf += decoder.decode(value, { stream: true })
-        let idx: number
-        while ((idx = buf.indexOf('\n\n')) >= 0) {
-          const frame = buf.slice(0, idx)
-          buf = buf.slice(idx + 2)
-          handleFrame(frame)
+        for (const json of feedSSE(sse, decoder.decode(value, { stream: true }))) {
+          const ev = parseAguiEvent(json)
+          if (ev) dispatch({ t: 'event', ev })
         }
       }
+      for (const json of flushSSE(sse)) {
+        const ev = parseAguiEvent(json)
+        if (ev) dispatch({ t: 'event', ev })
+      }
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message)
+      if ((e as Error).name !== 'AbortError') {
+        dispatch({ t: 'event', ev: { type: 'RUN_ERROR', message: (e as Error).message } })
+      }
     } finally {
-      // 流结束：把最后一条 streaming 消息定格
-      setMessages((m) => {
-        const last = m[m.length - 1]
-        if (last?.streaming) return [...m.slice(0, -1), { ...last, streaming: false }]
-        return m
-      })
-      setStreaming(false)
       abortRef.current = null
     }
-
-    function handleFrame(frame: string) {
-      // SSE 帧（规范解析）：event: <name>\ndata: <json>，冒号后空格可有可无
-      // （gin 的 SSEvent 写的是 "event:token" 无空格，多行 data 按 \n 连接）
-      let name = ''
-      const dataLines: string[] = []
-      for (const line of frame.split('\n')) {
-        if (line.startsWith('event:')) name = line.slice(6).trim()
-        else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''))
-      }
-      if (!name || dataLines.length === 0) return
-      let data: any = {}
-      try {
-        data = JSON.parse(dataLines.join('\n'))
-      } catch {
-        return
-      }
-      switch (name) {
-        case 'token':
-          setMessages((m) => {
-            const last = m[m.length - 1]
-            if (last?.role === 'assistant' && last.streaming) {
-              return [...m.slice(0, -1), { ...last, text: last.text + data.text }]
-            }
-            return [...m, { role: 'assistant', text: data.text, streaming: true }]
-          })
-          break
-        case 'message':
-          setMessages((m) => [...m, { role: data.role, text: data.text }])
-          break
-        case 'tool_call':
-          setTools((ts) => [
-            ...ts,
-            { id: data.id, name: data.name, args: data.arguments, state: 'calling' },
-          ])
-          break
-        case 'tool_result':
-          setTools((ts) =>
-            ts.map((x) =>
-              x.id === data.toolId || x.name === data.toolName
-                ? { ...x, state: 'done', result: data.content }
-                : x,
-            ),
-          )
-          break
-        case 'confirm':
-          setConfirm({ runId: data.runId, tool: data.tool, args: data.args })
-          break
-        case 'error':
-          setError(data.error)
-          break
-      }
-    }
-  }, [input, streaming, sessionId])
+  }, [input, busy, sessionId])
 
   const answerConfirm = useCallback(
     async (approved: boolean) => {
-      if (!confirm) return
-      const runId = confirm.runId
-      setConfirm(null)
-      setTools((ts) =>
-        ts.map((x) => (x.state === 'calling' ? { ...x, state: approved ? 'calling' : 'denied' } : x)),
-      )
+      const runId = state.confirm?.runId
+      dispatch({
+        t: 'event',
+        ev: { type: 'CUSTOM', name: 'tool_confirm_result', value: { approved } },
+      })
+      if (!runId) return
       await fetch(`/api/chat/runs/${runId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,87 +156,40 @@ export function ChatPanel() {
         body: JSON.stringify({ approved }),
       }).catch(() => {})
     },
-    [confirm],
+    [state.confirm],
   )
-
-  const busy = streaming || !!confirm
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* 消息列表 */}
+      {/* 消息时间线 */}
       <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.length === 0 && !streaming && (
+        {state.items.length === 0 && !state.running && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
             <Sparkles className="size-8 opacity-50" />
             <p className="text-sm">{t.chat.emptyHint}</p>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div
-              className={cn(
-                'max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed',
-                m.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground',
-              )}
-            >
-              {m.role === 'assistant' ? (
-                <div className="markdown-body prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>{m.text}</ReactMarkdown>
-                </div>
-              ) : (
-                m.text
-              )}
-            </div>
-          </div>
+        {state.items.map((item) => (
+          <TimelineRow key={item.key} item={item} />
         ))}
 
-        {/* 工具活动（助理消息后、下一次 token 前） */}
-        {tools.length > 0 && (
-          <div className="space-y-1.5">
-            {tools.map((tc) => (
-              <details
-                key={tc.id + tc.name}
-                className="group rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs"
-              >
-                <summary className="flex cursor-pointer list-none items-center gap-1.5 text-muted-foreground">
-                  {tc.state === 'calling' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : tc.state === 'denied' ? (
-                    <X className="size-3.5 text-destructive" />
-                  ) : (
-                    <Check className="size-3.5 text-emerald-500" />
-                  )}
-                  <Wrench className="size-3" />
-                  <span className="font-mono">{tc.name}</span>
-                  <ChevronDown className="ml-auto size-3 transition-transform group-open:rotate-180" />
-                </summary>
-                <pre className="mt-1.5 max-h-40 overflow-auto rounded bg-background/60 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
-                  {tc.result ?? tc.args}
-                </pre>
-              </details>
-            ))}
-          </div>
-        )}
-
-        {error && (
+        {state.error && (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-            {error}
+            {state.error}
           </div>
         )}
       </div>
 
       {/* 确认条 */}
-      {confirm && (
+      {state.confirm && (
         <div className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-3">
           <div className="flex items-start gap-2 text-xs">
             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
             <div className="min-w-0 flex-1">
               <p className="font-medium">{t.chat.confirmTitle}</p>
               <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                {confirm.tool} {confirm.args}
+                {state.confirm.tool} {state.confirm.args}
               </p>
             </div>
           </div>
@@ -328,10 +220,74 @@ export function ChatPanel() {
             disabled={busy}
           />
           <Button type="submit" size="icon" disabled={!input.trim() || busy}>
-            {streaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {state.running ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </div>
       </form>
     </div>
   )
+}
+
+/** 时间线单行渲染：按 kind 分派。 */
+function TimelineRow({ item }: { item: TimelineItem }) {
+  const { t } = useLang()
+  switch (item.kind) {
+    case 'user':
+      return (
+        <div className="flex justify-end">
+          <div className="bg-primary text-primary-foreground max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed">
+            {item.text}
+          </div>
+        </div>
+      )
+    case 'assistant':
+      return (
+        <div className="flex justify-start">
+          <div className="bg-muted text-foreground max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed">
+            {item.text ? (
+              <div className="markdown-body prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown>{item.text}</ReactMarkdown>
+              </div>
+            ) : (
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                <Loader2 className="size-3 animate-spin" />
+              </span>
+            )}
+          </div>
+        </div>
+      )
+    case 'reasoning':
+      return (
+        <details open={item.open} className="group rounded-lg border border-border/60 px-2.5 py-1.5 text-xs">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-muted-foreground">
+            <Brain className="size-3.5" />
+            <span>{item.text ? t.chat.thinkingLabel : t.chat.thinkingPending}</span>
+            <ChevronDown className="ml-auto size-3 transition-transform group-open:rotate-180" />
+          </summary>
+          <pre className="text-muted-foreground mt-1.5 max-h-60 overflow-auto whitespace-pre-wrap font-sans leading-relaxed">
+            {item.text}
+          </pre>
+        </details>
+      )
+    case 'tool':
+      return (
+        <details className="group rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-muted-foreground">
+            {item.status === 'calling' ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : item.status === 'denied' ? (
+              <X className="text-destructive size-3.5" />
+            ) : (
+              <Check className="size-3.5 text-emerald-500" />
+            )}
+            <Wrench className="size-3" />
+            <span className="font-mono">{item.name}</span>
+            <ChevronDown className="ml-auto size-3 transition-transform group-open:rotate-180" />
+          </summary>
+          <pre className="mt-1.5 max-h-40 overflow-auto rounded bg-background/60 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+            {item.result ?? item.args}
+          </pre>
+        </details>
+      )
+  }
 }
