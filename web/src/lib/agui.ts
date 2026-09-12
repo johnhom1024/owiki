@@ -161,6 +161,11 @@ export interface ChatState {
   confirm: PendingConfirm | null
 }
 
+/** 生成新的会话 id（客户端本地标识，服务端按需建 session 记录） */
+export function newChatSessionId(): string {
+  return 's-' + Math.random().toString(36).slice(2, 10)
+}
+
 export const initialChatState: ChatState = {
   items: [],
   error: null,

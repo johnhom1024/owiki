@@ -222,15 +222,14 @@ func RegisterAPI(api *gin.RouterGroup, mgr *Manager, settings *repository.AISett
 
 	// ---- 会话列表 ----
 	g.GET("/sessions", func(c *gin.Context) {
-		svc := NewSessionService(mgr.store)
-		sessions, err := svc.ListSessions(c.Request.Context(), userKey())
+		rows, err := mgr.store.ListSessions(c.Request.Context(), AppName, UserID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		out := make([]gin.H, 0, len(sessions))
-		for _, s := range sessions {
-			out = append(out, gin.H{"id": s.ID, "updatedAt": s.UpdatedAt})
+		out := make([]gin.H, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, gin.H{"id": r.ID, "title": r.Title, "updatedAt": r.UpdatedAt})
 		}
 		c.JSON(http.StatusOK, gin.H{"data": out})
 	})

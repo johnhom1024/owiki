@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
-import { Bot, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Bot, ChevronsLeft, ChevronsRight, History, MessageSquarePlus } from 'lucide-react'
 import { useLang } from '@/i18n/LangProvider'
 import { useFeatures } from '@/lib/features'
 import { useAI } from '@/lib/ai'
 import { ChatPanel } from '@/components/ChatPanel'
+import { SessionHistoryPanel } from '@/components/SessionHistoryPanel'
+import { newChatSessionId } from '@/lib/agui'
 import { cn } from '@/lib/utils'
 
 const OPEN_KEY = 'owiki-chat-open'
@@ -37,6 +39,42 @@ export function ChatEntry() {
       return true
     }
   })
+  const [sessionId, setSessionId] = useState(() => {
+    try {
+      return localStorage.getItem('owiki-chat-session') || newChatSessionId()
+    } catch {
+      return newChatSessionId()
+    }
+  })
+  const newChat = useCallback(() => {
+    const id = newChatSessionId()
+    try {
+      localStorage.setItem('owiki-chat-session', id)
+    } catch {
+      /* ignore */
+    }
+    setSessionId(id)
+  }, [])
+
+  const switchChat = useCallback((id: string) => {
+    try {
+      localStorage.setItem('owiki-chat-session', id)
+    } catch {
+      /* ignore */
+    }
+    setSessionId(id)
+  }, [])
+
+  const deleteChat = useCallback((id: string) => {
+    // 删的是当前会话则换新
+    try {
+      if (localStorage.getItem('owiki-chat-session') === id) newChat()
+    } catch {
+      /* ignore */
+    }
+  }, [newChat])
+
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -46,10 +84,19 @@ export function ChatEntry() {
     }
   }, [open])
 
+  // 首次生成（localStorage 为空）也要落盘，否则刷新换会话丢历史
+  useEffect(() => {
+    try {
+      localStorage.setItem('owiki-chat-session', sessionId)
+    } catch {
+      /* ignore */
+    }
+  }, [sessionId])
+
   if (!isEnabled('chat') || !showEntry) return null
 
   if (!desktop) {
-    return <MobileChat open={open} onOpenChange={setOpen} />
+    return <MobileChat open={open} onOpenChange={setOpen} sessionId={sessionId} onNewChat={newChat} onSwitchChat={switchChat} />
   }
 
   return (
@@ -68,6 +115,26 @@ export function ChatEntry() {
             <p className="text-muted-foreground mt-0.5 truncate text-[11px]">{t.chat.panelDesc}</p>
           </div>
         )}
+        {open && (
+          <>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              title={t.chat.historyTitle}
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-7 items-center justify-center rounded-md"
+            >
+              <History className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={newChat}
+              title={t.chat.newChat}
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-7 items-center justify-center rounded-md"
+            >
+              <MessageSquarePlus className="size-4" />
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -77,15 +144,25 @@ export function ChatEntry() {
           {open ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
         </button>
       </div>
-      <div className={cn('min-h-0 flex-1', open ? 'flex flex-col' : 'hidden')}>
-        <ChatPanel />
+      <div className={cn('relative min-h-0 flex-1', open ? 'flex flex-col' : 'hidden')}>
+        <ChatPanel sessionId={sessionId} />
+        <SessionHistoryPanel
+          open={historyOpen}
+          currentId={sessionId}
+          onSwitch={switchChat}
+          onNew={newChat}
+          onDelete={deleteChat}
+          onClose={() => setHistoryOpen(false)}
+        />
       </div>
     </aside>
   )
 }
 
-function MobileChat({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function MobileChat({ open, onOpenChange, sessionId, onNewChat, onSwitchChat }: { open: boolean; onOpenChange: (v: boolean) => void; sessionId: string; onNewChat: () => void; onSwitchChat: (id: string) => void }) {
   const { t } = useLang()
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const toggleHistory = useCallback(() => setHistoryOpen((v) => !v), [])
   return (
     <>
       {!open && (
@@ -116,14 +193,44 @@ function MobileChat({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
               <p className="min-w-0 flex-1 truncate text-sm font-semibold">{t.chat.panelTitle}</p>
               <button
                 type="button"
+                onClick={toggleHistory}
+                title={t.chat.historyTitle}
+                className="text-muted-foreground hover:bg-muted rounded-md p-1.5"
+              >
+                <History className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onNewChat}
+                title={t.chat.newChat}
+                className="text-muted-foreground hover:bg-muted rounded-md p-1.5"
+              >
+                <MessageSquarePlus className="size-4" />
+              </button>
+              <button
+                type="button"
                 onClick={() => onOpenChange(false)}
                 className="text-muted-foreground hover:bg-muted rounded-md p-1.5"
               >
                 <ChevronsRight className="size-4" />
               </button>
             </div>
-            <div className="min-h-0 flex-1">
-              <ChatPanel />
+            <div className="relative min-h-0 flex-1">
+              <ChatPanel sessionId={sessionId} />
+              <SessionHistoryPanel
+                open={historyOpen}
+                currentId={sessionId}
+                onSwitch={(id) => {
+                  onSwitchChat(id)
+                  setHistoryOpen(false)
+                }}
+                onNew={() => {
+                  onNewChat()
+                  setHistoryOpen(false)
+                }}
+                onDelete={() => {}}
+                onClose={() => setHistoryOpen(false)}
+              />
             </div>
           </aside>
         </div>

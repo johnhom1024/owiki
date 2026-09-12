@@ -340,6 +340,12 @@ const zh = {
     expand: '展开对话栏',
     thinkingLabel: '思考过程',
     thinkingPending: '思考中…',
+    newChat: '新对话',
+    historyTitle: '历史对话',
+    historyEmpty: '还没有对话记录',
+    untitledChat: '未命名对话',
+    deleteChat: '删除对话',
+    close: '关闭',
   },
 
   settings: {
@@ -791,6 +797,12 @@ const en: typeof zh = {
     expand: 'Expand chat',
     thinkingLabel: 'Reasoning',
     thinkingPending: 'Thinking…',
+    newChat: 'New chat',
+    historyTitle: 'History',
+    historyEmpty: 'No conversations yet',
+    untitledChat: 'Untitled chat',
+    deleteChat: 'Delete chat',
+    close: 'Close',
   },
 
   settings: {

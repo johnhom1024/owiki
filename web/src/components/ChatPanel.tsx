@@ -52,23 +52,8 @@ function reducer(state: ChatState, action: Action): ChatState {
   }
 }
 
-export function ChatPanel() {
+export function ChatPanel({ sessionId }: { sessionId: string }) {
   const { t } = useLang()
-  const [sessionId] = useState(() => {
-    try {
-      const saved = localStorage.getItem('owiki-chat-session')
-      if (saved) return saved
-    } catch {
-      /* ignore */
-    }
-    const id = 's-' + Math.random().toString(36).slice(2, 10)
-    try {
-      localStorage.setItem('owiki-chat-session', id)
-    } catch {
-      /* ignore */
-    }
-    return id
-  })
   const [state, dispatch] = useReducer(reducer, initialChatState)
   const [input, setInput] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
