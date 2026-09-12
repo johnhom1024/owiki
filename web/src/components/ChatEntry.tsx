@@ -107,8 +107,13 @@ export function ChatEntry() {
         open ? 'w-[min(24rem,40vw)]' : 'w-11',
       )}
     >
-      <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-2">
-        <Bot className="size-4 shrink-0 text-primary" />
+      <div
+        className={cn(
+          'flex h-11 shrink-0 items-center border-b px-2',
+          open ? 'gap-1.5' : 'justify-center',
+        )}
+      >
+        {open && <Bot className="size-4 shrink-0 text-primary" />}
         {open && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-none">{t.chat.panelTitle}</p>
@@ -139,7 +144,10 @@ export function ChatEntry() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           title={open ? t.chat.collapse : t.chat.expand}
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ml-auto flex size-7 items-center justify-center rounded-md"
+          className={cn(
+            'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex size-7 items-center justify-center rounded-md',
+            open && 'ml-auto',
+          )}
         >
           {open ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
         </button>
