@@ -83,6 +83,8 @@ export interface SyncLogEntry {
   action: string
   /** 文件路径；rename 时为「旧路径 → 新路径」 */
   path: string
+  /** 关联笔记 id（跳详情优先用它；rename 后仍有效。旧数据/无关联为 0） */
+  noteId: number
   /** 补充信息（合并提示、来源说明等） */
   detail: string
   /** 变更内容字节数 */

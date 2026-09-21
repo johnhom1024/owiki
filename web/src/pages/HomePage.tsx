@@ -34,16 +34,25 @@ export function HomePage({
   const [creating, setCreating] = useState(false)
   // 正在解析路径的动态条目（点击后短暂 loading，防抖动）
   const [resolving, setResolving] = useState<number | null>(null)
+  // 解析失败的条目（文件已被删除/改名，旧日志路径成死链）：短暂提示后自动消失
+  const [resolveFailed, setResolveFailed] = useState<number | null>(null)
 
-  /** 点击动态条目：路径 → 文件 id → 跳详情页 */
+  /** 点击动态条目：noteId 直跳（rename 后 id 不变，永远有效）；
+   *  旧日志无 noteId 时回退路径反查（rename 日志取「→」后的新路径） */
   const openActivity = async (entry: SyncLogEntry) => {
     if (!entry.path || entry.action === 'file.delete') return
     setResolving(entry.id)
+    setResolveFailed(null)
     try {
-      const r = await api.resolveVaultFile(entry.vaultId, entry.path.split(' → ')[0])
+      if (entry.noteId) {
+        navigate(`/vaults/${entry.vaultId}/files/${entry.noteId}`)
+        return
+      }
+      const r = await api.resolveVaultFile(entry.vaultId, entry.path.split(' → ').pop() ?? entry.path)
       navigate(`/vaults/${entry.vaultId}/files/${r.data.id}`)
     } catch {
-      // 文件可能已被删除：不跳转
+      setResolveFailed(entry.id)
+      setTimeout(() => setResolveFailed((cur) => (cur === entry.id ? null : cur)), 3000)
     } finally {
       setResolving(null)
     }
@@ -195,6 +204,8 @@ export function HomePage({
                 verb={verbOf(e.action, t)}
                 relTime={relTime}
                 busy={resolving === e.id}
+                failed={resolveFailed === e.id}
+                failedHint={t.home.activityResolveFailed}
                 disabled={!e.path || e.action === 'file.delete'}
                 onOpen={() => void openActivity(e)}
               />
@@ -232,6 +243,8 @@ function ActivityRow({
   verb,
   relTime,
   busy,
+  failed,
+  failedHint,
   disabled,
   onOpen,
 }: {
@@ -240,6 +253,8 @@ function ActivityRow({
   verb: string
   relTime: (iso: string) => string
   busy?: boolean
+  failed?: boolean
+  failedHint: string
   disabled?: boolean
   onOpen: () => void
 }) {
@@ -253,6 +268,7 @@ function ActivityRow({
         !disabled && 'hover:bg-accent/50 cursor-pointer',
         disabled && 'cursor-default opacity-60',
         busy && 'animate-pulse',
+        failed && 'animate-wiggle',
       )}
     >
       <span className="text-muted-foreground w-20 shrink-0 truncate text-xs" title={vaultName}>
@@ -273,7 +289,11 @@ function ActivityRow({
       <span className="text-muted-foreground min-w-0 flex-1 truncate" title={entry.path}>
         {entry.path || entry.detail}
       </span>
-      <span className="text-muted-foreground/70 shrink-0 text-xs">{relTime(entry.createdAt)}</span>
+      {failed ? (
+        <span className="shrink-0 text-xs text-red-600 dark:text-red-400">{failedHint}</span>
+      ) : (
+        <span className="text-muted-foreground/70 shrink-0 text-xs">{relTime(entry.createdAt)}</span>
+      )}
     </button>
   )
 }

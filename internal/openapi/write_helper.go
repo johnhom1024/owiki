@@ -42,7 +42,7 @@ func WriteNote(ctx context.Context, repo *repository.NoteRepo, syncLog *reposito
 		case res.Created:
 			action = repository.ActionFileCreate
 		}
-		syncLog.Record(ctx, vid, action, path, actor, source, "", actor, int64(len(res.Note.Content)))
+		syncLog.Record(ctx, vid, action, path, actor, source, "", actor, int64(len(res.Note.Content)), res.Note.ID)
 	}
 	broadcastNote(h, vid, "changed", path, res.Note.ContentHash)
 	publishVaultLog(vid)
@@ -59,7 +59,13 @@ func RenameNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 		_ = attach.Rename(vid, from, to)
 	}
 	if syncLog != nil {
-		syncLog.Record(ctx, vid, repository.ActionFileRename, from+" → "+to, actor, source, "", actor, 0)
+		// rename 后行 id 不变：反查新路径拿 id，日志点击可直达
+		renamed, _ := repo.GetByPath(ctx, vid, to)
+		renamedID := int64(0)
+		if renamed != nil {
+			renamedID = renamed.ID
+		}
+		syncLog.Record(ctx, vid, repository.ActionFileRename, from+" → "+to, actor, source, "", actor, 0, renamedID)
 	}
 	broadcastRenamed(h, vid, from, to)
 	publishVaultLog(vid)
@@ -81,7 +87,7 @@ func DeleteNote(ctx context.Context, repo *repository.NoteRepo, attach *reposito
 		_ = attach.Delete(vid, path)
 	}
 	if syncLog != nil {
-		syncLog.Record(ctx, vid, repository.ActionFileDelete, path, actor, source, "", actor, 0)
+		syncLog.Record(ctx, vid, repository.ActionFileDelete, path, actor, source, "", actor, 0, noteID)
 	}
 	broadcastNote(h, vid, "deleted", path, "")
 	publishVaultLog(vid)

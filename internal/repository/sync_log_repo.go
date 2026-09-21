@@ -53,14 +53,15 @@ func NewSyncLogRepo(db *gorm.DB) (*SyncLogRepo, error) {
 	return &SyncLogRepo{db: db}, nil
 }
 
-// Record 写一条同步日志（异步安全：调用方可在请求路径里直接调）
-func (r *SyncLogRepo) Record(ctx context.Context, vaultID int64, action, path, detail, source, deviceID, deviceName string, size int64) {
+// Record 写一条同步日志（异步安全：调用方可在请求路径里直接调）。
+// noteID 关联笔记 id（前端点击跳详情优先用它；无关联动作传 0）。
+func (r *SyncLogRepo) Record(ctx context.Context, vaultID int64, action, path, detail, source, deviceID, deviceName string, size, noteID int64) {
 	if r == nil {
 		return
 	}
 	entry := &model.SyncLog{
 		VaultID: vaultID, Action: action, Path: path, Detail: detail,
-		Source: source, DeviceID: deviceID, DeviceName: deviceName, Size: size,
+		Source: source, DeviceID: deviceID, DeviceName: deviceName, Size: size, NoteID: noteID,
 	}
 	if err := r.db.WithContext(ctx).Create(entry).Error; err != nil {
 		// 日志写失败不能影响同步主流程，记到服务日志即可

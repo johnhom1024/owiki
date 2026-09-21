@@ -114,7 +114,7 @@ func Register(api *gin.RouterGroup, repo *repository.NoteRepo, h *hub.Hub, syncL
 			if res.Created {
 				action = repository.ActionFileCreate
 			}
-			syncLog.Record(c.Request.Context(), exist.VaultID, action, exist.Path, "Web 端编辑", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)))
+			syncLog.Record(c.Request.Context(), exist.VaultID, action, exist.Path, "Web 端编辑", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)), res.Note.ID)
 		}
 		// SSE：同步日志时间线实时刷新 + gitbackup 等事件订阅者触发
 		if eventHubRef != nil {

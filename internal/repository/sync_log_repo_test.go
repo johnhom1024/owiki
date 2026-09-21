@@ -31,10 +31,10 @@ func TestSyncLogRecordAndPage(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
-		r.Record(ctx, 1, ActionFileCreate, "a.md", "", SourceWs, "dev-1", "Mac", 100)
+		r.Record(ctx, 1, ActionFileCreate, "a.md", "", SourceWs, "dev-1", "Mac", 100, 0)
 	}
-	r.Record(ctx, 1, ActionFileDelete, "b.md", "", SourceWeb, "", "Web 管理端", 0)
-	r.Record(ctx, 2, ActionFileCreate, "other-vault.md", "", SourceWs, "dev-2", "Win", 10)
+	r.Record(ctx, 1, ActionFileDelete, "b.md", "", SourceWeb, "", "Web 管理端", 0, 0)
+	r.Record(ctx, 2, ActionFileCreate, "other-vault.md", "", SourceWs, "dev-2", "Win", 10, 0)
 
 	// 第一页：vault 1 全部（新→旧）
 	logs, hasMore, err := r.ListPage(ctx, 1, 0, 3, nil)
@@ -77,7 +77,7 @@ func TestSyncLogCleanupRetention(t *testing.T) {
 	if err := r.db.Create(old).Error; err != nil {
 		t.Fatal(err)
 	}
-	r.Record(ctx, 1, ActionFileCreate, "new.md", "", SourceWs, "d", "dev", 1)
+	r.Record(ctx, 1, ActionFileCreate, "new.md", "", SourceWs, "d", "dev", 1, 0)
 
 	n, err := r.Cleanup(ctx)
 	if err != nil {

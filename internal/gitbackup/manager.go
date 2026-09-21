@@ -282,7 +282,7 @@ func (w *worker) runOnce() {
 		msg := sanitizeErr(err)
 		_ = w.m.repo.UpdateStatus(ctx, w.vaultID, "error", msg, time.Now())
 		if w.m.syncLog != nil {
-			w.m.syncLog.Record(ctx, w.vaultID, "gitbackup.error", "", msg, "gitbackup", "", "Git 备份", 0)
+			w.m.syncLog.Record(ctx, w.vaultID, "gitbackup.error", "", msg, "gitbackup", "", "Git 备份", 0, 0)
 		}
 		log.Printf("[gitbackup] vault=%d run error: %v", w.vaultID, msg)
 		return
@@ -290,7 +290,7 @@ func (w *worker) runOnce() {
 	_ = w.m.repo.UpdateSuccess(ctx, w.vaultID, res.CommitSHA, res.Pushed, time.Now())
 	if res.Committed {
 		if w.m.syncLog != nil {
-			w.m.syncLog.Record(ctx, w.vaultID, "gitbackup.commit", "", res.CommitSHA, "gitbackup", "", "Git 备份", int64(res.Files))
+			w.m.syncLog.Record(ctx, w.vaultID, "gitbackup.commit", "", res.CommitSHA, "gitbackup", "", "Git 备份", int64(res.Files), 0)
 		}
 		log.Printf("[gitbackup] vault=%d commit=%s files=%d pushed=%v", w.vaultID, res.CommitSHA, res.Files, res.Pushed)
 	}

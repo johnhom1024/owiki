@@ -53,9 +53,9 @@ func NewServer(h *hub.Hub, repo *repository.NoteRepo, vaultRepo *repository.Vaul
 }
 
 // logSync 落一条同步日志并推送 vault.log SSE 事件（Web 端日志时间线实时刷新）。
-// 日志失败不影响同步主流程。
-func (s *Server) logSync(vaultID int64, action, path, detail string, size int64, deviceID, deviceName string) {
-	s.syncLog.Record(context.Background(), vaultID, action, path, detail, repository.SourceWs, deviceID, deviceName, size)
+// 日志失败不影响同步主流程。noteID 关联笔记 id（前端点击跳详情用；无关联传 0）。
+func (s *Server) logSync(vaultID int64, action, path, detail string, size, noteID int64, deviceID, deviceName string) {
+	s.syncLog.Record(context.Background(), vaultID, action, path, detail, repository.SourceWs, deviceID, deviceName, size, noteID)
 	if s.eventHub != nil {
 		s.eventHub.Publish(events.Event{
 			Type:     "vault.log",
@@ -263,7 +263,7 @@ func (s *Server) handleHello(c *hub.Client, data []byte) {
 	}
 	log.Printf("[ws] hello vault=%q device=%s… name=%q clientVersion=%s syncEnabled=%v from %s",
 		vault.Name, shortID(m.DeviceID), m.DeviceName, clientVer, syncEnabled, c.Conn.RemoteAddr())
-	s.logSync(vault.ID, repository.ActionDevConnect, "", "clientVersion="+clientVer+" syncEnabled="+strconv.FormatBool(syncEnabled), 0, m.DeviceID, m.DeviceName)
+	s.logSync(vault.ID, repository.ActionDevConnect, "", "clientVersion="+clientVer+" syncEnabled="+strconv.FormatBool(syncEnabled), 0, 0, m.DeviceID, m.DeviceName)
 	// 通知 Web 端：vault 状态变化（设备绑定/重连成功）。Web 端订阅 SSE 后
 	// 自动重查列表/设置页，让「已授权」状态实时变化
 	if s.eventHub != nil {
@@ -356,7 +356,7 @@ func (s *Server) handleUpload(c *hub.Client, data []byte) {
 		if errors.As(err, &ce) {
 			// 冲突留痕：客户端收到 conflict 后通常会带 force 重传「冲突标记版」，
 			// 这条记录让 Web 端时间线能看到冲突发生本身
-			s.logSync(c.VaultID, repository.ActionFileConflict, m.Path, "三方合并失败，返回服务端版本", 0, c.DeviceID, c.DeviceName)
+			s.logSync(c.VaultID, repository.ActionFileConflict, m.Path, "三方合并失败，返回服务端版本", 0, 0, c.DeviceID, c.DeviceName)
 			s.sendJSON(c, proto.Conflict{
 				Type:          "conflict",
 				Path:          m.Path,
@@ -387,7 +387,7 @@ func (s *Server) handleUpload(c *hub.Client, data []byte) {
 		// 内容与已存版本一致：纯回声（如 iCloud 与另一客户端同时到达），
 		// 只确认给上传方，不广播，避免多客户端互相触发上传循环。
 		log.Printf("[ws] upload %s (echo, unchanged) vault=%d device=%s… from %s", m.Path, c.VaultID, shortID(c.DeviceID), c.Conn.RemoteAddr())
-		s.logSync(c.VaultID, repository.ActionFileEcho, m.Path, "", 0, c.DeviceID, c.DeviceName)
+		s.logSync(c.VaultID, repository.ActionFileEcho, m.Path, "", 0, res.Note.ID, c.DeviceID, c.DeviceName)
 		s.advanceProgress(c.VaultID, m.Path)
 		return
 	}
@@ -399,7 +399,7 @@ func (s *Server) handleUpload(c *hub.Client, data []byte) {
 	case res.Created:
 		action = repository.ActionFileCreate
 	}
-	s.logSync(c.VaultID, action, m.Path, "", int64(len(res.Note.Content)), c.DeviceID, c.DeviceName)
+	s.logSync(c.VaultID, action, m.Path, "", int64(len(res.Note.Content)), res.Note.ID, c.DeviceID, c.DeviceName)
 	log.Printf("[ws] upload %s (%d bytes) vault=%d device=%s… from %s", m.Path, len(res.Note.Content), c.VaultID, shortID(c.DeviceID), c.Conn.RemoteAddr())
 	s.advanceProgress(c.VaultID, m.Path)
 }
@@ -428,7 +428,13 @@ func (s *Server) handleAttachmentUpload(c *hub.Client, m proto.Upload) error {	c
 	s.sendJSON(c, proto.OK{Type: "ok", For: "upload", Path: m.Path, Hash: hash})
 	changed, _ := json.Marshal(proto.Changed{Type: "changed", Path: m.Path, Hash: hash})
 	s.hub.BroadcastVault(c.VaultID, changed, c)
-	s.logSync(c.VaultID, repository.ActionFileCreate, m.Path, "附件", int64(n), c.DeviceID, c.DeviceName)
+	// 附件行 id（点击日志跳详情用）；查不到时 0，前端回退路径反查
+	attNote, _ := s.repo.GetByPath(ctx, c.VaultID, m.Path)
+	attNoteID := int64(0)
+	if attNote != nil {
+		attNoteID = attNote.ID
+	}
+	s.logSync(c.VaultID, repository.ActionFileCreate, m.Path, "附件", int64(n), attNoteID, c.DeviceID, c.DeviceName)
 	log.Printf("[ws] upload attachment %s (%d bytes) vault=%d from %s", m.Path, n, c.VaultID, c.Conn.RemoteAddr())
 	s.advanceProgress(c.VaultID, m.Path)
 	return nil
@@ -490,7 +496,13 @@ func (s *Server) handleRename(c *hub.Client, data []byte) {
 	s.sendJSON(c, proto.OK{Type: "ok", For: "rename", From: m.From, To: m.To, Path: m.To})
 	msg, _ := json.Marshal(proto.Renamed{Type: "renamed", From: m.From, To: m.To})
 	s.hub.BroadcastVault(c.VaultID, msg, c)
-	s.logSync(c.VaultID, repository.ActionFileRename, m.From+" → "+m.To, "", 0, c.DeviceID, c.DeviceName)
+	// rename 后行 id 不变：反查新路径拿 id，日志点击可直达
+	renamedNote, _ := s.repo.GetByPath(context.Background(), c.VaultID, m.To)
+	renamedNoteID := int64(0)
+	if renamedNote != nil {
+		renamedNoteID = renamedNote.ID
+	}
+	s.logSync(c.VaultID, repository.ActionFileRename, m.From+" → "+m.To, "", 0, renamedNoteID, c.DeviceID, c.DeviceName)
 	log.Printf("[ws] rename %s -> %s vault=%d from %s", m.From, m.To, c.VaultID, c.Conn.RemoteAddr())
 }
 
@@ -504,15 +516,15 @@ func (s *Server) handleDelete(c *hub.Client, data []byte) {
 		s.sendErr(c, "delete: empty path")
 		return
 	}
+	// 先取行（删除后无法回查）：分享记录清理 + 日志 noteID 都用它
+	note, _ := s.repo.GetByPath(context.Background(), c.VaultID, m.Path)
 	if err := s.repo.DeleteByPath(context.Background(), c.VaultID, m.Path); err != nil && !errors.Is(err, repository.ErrNotFound) {
 		s.sendErr(c, "delete: "+err.Error())
 		return
 	}
 	// 连带清理该笔记的分享记录（有则删，无则跳过）
-	if s.share != nil {
-		if n, err := s.repo.GetByPath(context.Background(), c.VaultID, m.Path); err == nil {
-			_ = s.share.DeleteByNoteID(context.Background(), n.ID)
-		}
+	if note != nil && s.share != nil {
+		_ = s.share.DeleteByNoteID(context.Background(), note.ID)
 	}
 	// 附件文件一并删除
 	if repository.IsAttachment(m.Path) {
@@ -523,7 +535,11 @@ func (s *Server) handleDelete(c *hub.Client, data []byte) {
 	s.sendJSON(c, proto.OK{Type: "ok", For: "delete", Path: m.Path})
 	msg, _ := json.Marshal(proto.Deleted{Type: "deleted", Path: m.Path})
 	s.hub.BroadcastVault(c.VaultID, msg, c)
-	s.logSync(c.VaultID, repository.ActionFileDelete, m.Path, "", 0, c.DeviceID, c.DeviceName)
+	delNoteID := int64(0)
+	if note != nil {
+		delNoteID = note.ID
+	}
+	s.logSync(c.VaultID, repository.ActionFileDelete, m.Path, "", 0, delNoteID, c.DeviceID, c.DeviceName)
 	log.Printf("[ws] delete %s vault=%d from %s", m.Path, c.VaultID, c.Conn.RemoteAddr())
 }
 
@@ -632,7 +648,7 @@ func (s *Server) handleBye(c *hub.Client, data []byte) {
 	}
 	s.sendJSON(c, proto.OK{Type: "ok", For: "bye"})
 	// 解绑留痕：设备记录已删，从连接上取设备名
-	s.logSync(c.VaultID, repository.ActionDevUnbind, "", "", 0, deviceID, c.DeviceName)
+	s.logSync(c.VaultID, repository.ActionDevUnbind, "", "", 0, 0, deviceID, c.DeviceName)
 	log.Printf("[ws] bye vault=%d device=%s (unbound)", c.VaultID, deviceID)
 	// 通知 Web 端：解绑/清授权
 	if s.eventHub != nil {

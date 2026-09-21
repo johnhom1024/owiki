@@ -477,7 +477,7 @@ func RegisterVaultRoutes(api *gin.RouterGroup, vaultRepo *repository.VaultRepo, 
 			h.BroadcastVault(vid, msg, nil)
 		}
 		if syncLog != nil {
-			syncLog.Record(c.Request.Context(), vid, repository.ActionFileCreate, res.Note.Path, "Web 端新建", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)))
+			syncLog.Record(c.Request.Context(), vid, repository.ActionFileCreate, res.Note.Path, "Web 端新建", repository.SourceWeb, "", "Web 管理端", int64(len(res.Note.Content)), res.Note.ID)
 		}
 		if eventHub != nil {
 			eventHub.Publish(events.Event{Type: "vault.log", VaultID: vid})

@@ -140,9 +140,12 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
                 <Label htmlFor="totp-code">{t.login.totpLabel}</Label>
                 <Input
                   id="totp-code"
+                  name="code"
                   ref={totpInputRef}
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  pattern="[0-9]*"
+                  spellCheck={false}
                   maxLength={6}
                   value={totpCode}
                   onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}

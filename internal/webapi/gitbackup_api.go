@@ -262,7 +262,7 @@ func RegisterGitBackupRoutes(api *gin.RouterGroup, gbRepo *repository.GitBackupR
 		// 同步日志 + SSE 事件（前端 GitBackupCard 刷新状态）
 		if gitBackupSyncLog != nil {
 			gitBackupSyncLog.Record(c.Request.Context(), vid, "gitbackup.restore", "",
-				fmt.Sprintf("restored %d files (ref=%s)", res.Applied, body.From), "gitbackup", "", "Git 备份", int64(res.Applied))
+				fmt.Sprintf("restored %d files (ref=%s)", res.Applied, body.From), "gitbackup", "", "Git 备份", int64(res.Applied), 0)
 		}
 		if eventHub != nil {
 			eventHub.Publish(events.Event{Type: "vault.log", VaultID: vid})

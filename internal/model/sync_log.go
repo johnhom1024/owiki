@@ -12,6 +12,8 @@ type SyncLog struct {
 	Action string `gorm:"type:varchar(32);index:idx_synclog_vault_action;not null" json:"action"`
 	// Path 文件路径；rename 时存「旧路径 → 新路径」
 	Path string `gorm:"type:varchar(512)" json:"path"`
+	// NoteID 关联笔记 id（rename/点击跳详情用；删除与设备类动作无，为 0）
+	NoteID int64 `gorm:"index:idx_synclog_note_id" json:"noteId"`
 	// Detail 补充信息（合并提示、冲突原因、来源 IP 等）
 	Detail string `gorm:"type:varchar(512)" json:"detail"`
 	// Size 变更内容字节数（create/update 有效）
