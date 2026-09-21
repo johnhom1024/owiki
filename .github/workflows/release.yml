@@ -60,6 +60,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          # provenance/attestation 清单（artifact type UNKNOWN）会被 CNB docker 仓库拒绝
+          provenance: false
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
           tags: |
@@ -75,6 +77,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          # provenance/attestation 清单（artifact type UNKNOWN）会被 CNB docker 仓库拒绝
+          provenance: false
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
           tags: |
