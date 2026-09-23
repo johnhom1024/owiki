@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"owiki/internal/events"
+	"owiki/internal/feature"
 	"owiki/internal/hub"
 	"owiki/internal/model"
 	"owiki/internal/proto"
@@ -25,6 +26,10 @@ import (
 // 用于在 welcome 消息里告诉客户端「你连的服务端是什么版本」。
 // 未注入时为 "dev"（本地开发默认）。
 var ServerVersion = "dev"
+
+// PublicURL 服务端对外暴露的公网地址（OWIKI_PUBLIC_URL env），随 welcome
+// 下发给插件，用于拼接分享链接。空串表示未配置（客户端回退到从 serverUrl 推导）。
+var PublicURL = ""
 
 // WebSocket 同步服务
 type Server struct {
@@ -143,6 +148,8 @@ func (s *Server) readPump(c *hub.Client) {
 			s.handleRename(c, data)
 		case "delete":
 			s.handleDelete(c, data)
+		case "share":
+			s.handleShare(c, data)
 		case "bye":
 			s.handleBye(c, data)
 		case "pong":
@@ -253,7 +260,7 @@ func (s *Server) handleHello(c *hub.Client, data []byte) {
 	s.sendJSON(c, proto.Welcome{
 		Type: "welcome", OK: true, Vault: vault.Name,
 		ServerAt: time.Now(), ServerVersion: ServerVersion,
-		SyncEnabled: &syncEnabledFlag,
+		SyncEnabled: &syncEnabledFlag, PublicURL: PublicURL,
 	})
 	// 客户端版本是排查兼容性的第一手信息：空串/老客户端时回退 "unknown"，
 	// 让日志至少能区分「老客户端」与「传了空串的 bug」。
@@ -541,6 +548,68 @@ func (s *Server) handleDelete(c *hub.Client, data []byte) {
 	}
 	s.logSync(c.VaultID, repository.ActionFileDelete, m.Path, "", 0, delNoteID, c.DeviceID, c.DeviceName)
 	log.Printf("[ws] delete %s vault=%d from %s", m.Path, c.VaultID, c.Conn.RemoteAddr())
+}
+
+// handleShare 插件端分享查询/开关（Obsidian 内直接拿公开链接，不用去 Web 端）。
+//   - enabled 缺省 = 查询：GetOrCreate 语义（首次返回 enabled=false + token）
+//   - enabled 非 nil = 设置开关（先 GetOrCreate 再 SetEnabled，与 Web 端一致）
+//
+// 权限模型：WS 连接已用 vault 同步令牌认证，天然限定在本 vault 内按 path 操作；
+// share 属文件同步类操作之外的辅助能力，单设备观察态连接也可用（不做 isFileSyncMsg 拦截）。
+// L2 插件开关门禁：share 功能被关时与 Web 端同语义拒绝。
+func (s *Server) handleShare(c *hub.Client, data []byte) {
+	var m proto.Share
+	if err := json.Unmarshal(data, &m); err != nil {
+		s.sendErr(c, "bad share: "+err.Error())
+		return
+	}
+	if m.Path == "" {
+		s.sendErr(c, "share: empty path")
+		return
+	}
+	if !feature.Use().Enabled("share") {
+		s.sendErr(c, "share feature disabled on server")
+		return
+	}
+	if s.share == nil {
+		s.sendErr(c, "share: not available")
+		return
+	}
+	ctx := context.Background()
+	note, err := s.repo.GetByPath(ctx, c.VaultID, m.Path)
+	if errors.Is(err, repository.ErrNotFound) {
+		s.sendErr(c, "share: note not found (sync first): "+m.Path)
+		return
+	}
+	if err != nil {
+		s.sendErr(c, "share: "+err.Error())
+		return
+	}
+	if _, err := s.share.GetOrCreateByNoteID(ctx, note.VaultID, note.ID); err != nil {
+		s.sendErr(c, "share: "+err.Error())
+		return
+	}
+	sh, err := s.share.GetByNoteID(ctx, note.ID)
+	if err != nil {
+		s.sendErr(c, "share: "+err.Error())
+		return
+	}
+	if m.Enabled != nil {
+		sh, err = s.share.SetEnabled(ctx, note.ID, *m.Enabled)
+		if err != nil {
+			s.sendErr(c, "share: "+err.Error())
+			return
+		}
+	}
+	if m.Enabled != nil {
+		log.Printf("[ws] share note=%d vault=%d enabled=%v token=%s (from plugin device=%s…)",
+			note.ID, c.VaultID, sh.Enabled, sh.Token, shortID(c.DeviceID))
+		s.logSync(c.VaultID, repository.ActionFileUpdate, m.Path,
+			"Share switch: "+strconv.FormatBool(sh.Enabled), 0, note.ID, c.DeviceID, c.DeviceName)
+	}
+	s.sendJSON(c, proto.ShareResponse{
+		Type: "share_response", Path: m.Path, Enabled: sh.Enabled, Token: sh.Token,
+	})
 }
 
 // ---------- 同步进度跟踪（Web 端展示用） ----------

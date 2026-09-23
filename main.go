@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"owiki/internal/agent"
 	"owiki/internal/events"
@@ -49,6 +50,9 @@ func main() {
 
 	// 把编译时注入的版本号同步给 ws 包（welcome 消息会用）
 	ws.ServerVersion = version
+	// 公网访问地址（可选）：随 WS welcome 下发，插件端拼接分享链接用。
+	// 反代/内网穿透场景下客户端只知道内网 ws 地址，只有服务端知道对外域名。
+	ws.PublicURL = strings.TrimSpace(envOr("OWIKI_PUBLIC_URL", ""))
 	log.Printf("owiki version=%s", version)
 
 	repo, err := repository.NewNoteRepo(dbPath)

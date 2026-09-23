@@ -107,6 +107,11 @@ type Welcome struct {
 	// 但一切文件同步消息（hashlist/upload/fetch/rename/delete）会被服务端拒绝，也收不到变更广播。
 	// 老服务端不携带此字段，客户端按 true 处理（老服务端没有单设备拦截）。
 	SyncEnabled *bool `json:"syncEnabled,omitempty"`
+	// PublicURL 服务端配置的公网访问地址（OWIKI_PUBLIC_URL env，如
+	// "https://owiki.example.com"）。插件端拼接分享链接用：服务端知道
+	// 自己对外暴露的地址（反代/内网穿透场景下客户端只知道 ws://内网IP）。
+	// 未配置时省略，客户端回退到从 serverUrl 推导。
+	PublicURL string `json:"publicUrl,omitempty"`
 }
 
 // SyncState 服务端主动推送：单设备同步开关或 pin 设备发生变化，
@@ -188,6 +193,24 @@ type FetchResponse struct {
 // Ping 服务端心跳
 type Ping struct {
 	Type string `json:"type"` // 固定 "ping"
+}
+
+// Share 插件端发起的分享查询/开关（Obsidian 里直接拿分享链接）：
+//   - Enabled 为 nil：纯查询当前状态（没有记录时也返回 token，保持与
+//     Web 端 GetOrCreate 语义一致——首开生成 token，之后开关不变 URL）
+//   - Enabled 非 nil：设置开关（服务端会先 GetOrCreate 再 SetEnabled）
+type Share struct {
+	Type    string  `json:"type"`    // 固定 "share"
+	Path    string  `json:"path"`    // 笔记相对路径
+	Enabled *bool   `json:"enabled,omitempty"`
+}
+
+// ShareResponse share 的应答：分享状态 + token
+type ShareResponse struct {
+	Type    string `json:"type"`     // 固定 "share_response"
+	Path    string `json:"path"`
+	Enabled bool   `json:"enabled"`
+	Token   string `json:"token"`
 }
 
 // Conflict 乐观锁失败且无法自动三方合并
